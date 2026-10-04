@@ -57,16 +57,7 @@ function App() {
             <motion.div className="hero-note" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .55, duration: .7 }}><span>READ-ONLY BY DESIGN</span><span>•</span><span>SYNTHETIC DEMO DATA</span><span>•</span><span>NO MONEY IS MOVED</span></motion.div>
           </div>
 
-          <div className="hero-object-wrap" aria-hidden="true">
-            <motion.div className="hero-object" initial={{ opacity: 0, scale: .75, rotate: -12 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: 1.1, delay: .2, type: 'spring', stiffness: 70 }}>
-              <div className="orbit orbit-a" /><div className="orbit orbit-b" /><div className="orbit orbit-c" /><div className="core-shadow" />
-              <div className="core"><div className="core-inner"><ScanLine size={30} /><strong>TRUTH</strong><small>VERIFIED</small></div></div>
-              <div className="float-tag tag-top"><Activity size={13} /> LIVE EVIDENCE GRAPH</div>
-              <div className="float-tag tag-right"><Fingerprint size={13} /> SOURCE LOCKED</div>
-              <div className="float-tag tag-bottom"><Database size={13} /> DETERMINISTIC</div>
-            </motion.div>
-          </div>
-          <a className="scroll-cue" href="#architecture" aria-label="Scroll to architecture"><span>SCROLL TO DECODE</span><ChevronDown size={15} /></a>
+          <div className="hero-object-wrap" aria-hidden="true"><motion.div className="hero-object" initial={{opacity:0,scale:.8,rotateY:-25}} animate={{opacity:1,scale:1,rotateY:0}} transition={{duration:1.15,delay:.2,type:'spring',stiffness:65}}><div className="prism-shadow"/><div className="prism"><div className="prism-face prism-front"><Fingerprint size={26}/><strong>PROVENANCE</strong><small>01 / SOURCE</small></div><div className="prism-face prism-back"><Database size={22}/><strong>RECORD</strong><small>02 / STATE</small></div><div className="prism-face prism-right"><CheckCircle2 size={23}/><strong>VERIFY</strong><small>03 / LOGIC</small></div><div className="prism-face prism-left"><ShieldCheck size={23}/><strong>DECIDE</strong><small>04 / HUMAN</small></div><div className="prism-face prism-top"><ScanLine size={24}/><strong>EVIDENCE</strong></div></div><div className="prism-ring ring-one"/><div className="prism-ring ring-two"/><div className="float-tag tag-top"><Activity size={13}/> EVIDENCE GRAPH</div><div className="float-tag tag-right"><Fingerprint size={13}/> SOURCE LOCKED</div><div className="float-tag tag-bottom"><Database size={13}/> AUDIT READY</div></motion.div></div><a className="scroll-cue" href="#architecture" aria-label="Scroll to architecture"><span>SCROLL TO DECODE</span><ChevronDown size={15} /></a>
         </section>
 
         <section id="architecture" className="section architecture">
