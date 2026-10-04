@@ -1,13 +1,108 @@
-import React from 'react';
-import { ShieldAlert, ArrowRight, Play, FileSearch, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import {
+  ArrowRight, CheckCircle2, ChevronDown, FileSearch, Fingerprint, Play,
+  ScanLine, ShieldAlert, ShieldCheck, Sparkles, Activity, Database,
+} from 'lucide-react';
+import { useRef } from 'react';
 
-function App() {
-  return <div className="min-h-screen bg-[#07090E] text-[#F3F4F6] font-sans">
-    <nav className="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50"><div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"><div className="flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-[#0066CC]"/><span className="font-semibold tracking-wide">PRIMHORA</span></div><a href="https://firsthour-ui-n4cc.onrender.com/" target="_blank" rel="noreferrer" className="bg-white/10 px-4 py-2 rounded-full font-medium">Explore product</a></div></nav>
-    <main className="relative overflow-hidden"><div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[#0066CC]/20 rounded-full blur-[120px] -z-10 pointer-events-none"/>
-      <section className="max-w-7xl mx-auto px-6 pt-32 pb-24 text-center"><div className="inline-flex px-3 py-1.5 rounded-full border border-[#0066CC]/30 bg-[#0066CC]/10 text-[#0066CC] text-xs font-semibold uppercase tracking-widest mb-8">Financial Incident Investigation</div><h1 className="text-5xl sm:text-7xl font-bold tracking-tight mb-8 leading-[1.1]">When money moves wrong,<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">know what you can prove.</span></h1><p className="text-lg text-white/50 max-w-2xl mx-auto mb-12 leading-relaxed">PRIMHORA reconstructs financial incidents from source records and fragmented evidence, verifies claims deterministically, and prepares an auditable evidence packet for human resolution.</p><div className="flex justify-center gap-4"><a href="https://firsthour-ui-n4cc.onrender.com/" target="_blank" rel="noreferrer" className="bg-white text-black px-8 py-4 rounded-full font-medium flex items-center gap-2">Explore the product <ArrowRight className="w-4 h-4"/></a><a href="#architecture" className="bg-white/5 border border-white/10 px-8 py-4 rounded-full font-medium flex items-center gap-2"><Play className="w-4 h-4"/> See how it works</a></div><p className="text-xs text-white/35 mt-8">Read-only by design. Demo data is synthetic. No money is moved by PRIMHORA.</p></section>
-      <section id="architecture" className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5"><div className="text-center mb-16"><h2 className="text-3xl font-bold mb-4">Three layers of authority</h2><p className="text-white/50 max-w-xl mx-auto">AI interprets. Deterministic systems establish financial truth. Humans resolve what the data cannot know.</p></div><div className="grid md:grid-cols-3 gap-8"><div className="bg-white/[0.02] border border-white/5 rounded-3xl p-8"><FileSearch className="w-10 h-10 text-[#0066CC] mb-6"/><h3 className="text-xl font-semibold mb-3">AI interprets</h3><p className="text-white/50 text-sm leading-relaxed">Unstructured evidence becomes candidate claims with source references. Candidate claims remain untrusted until verified.</p></div><div className="bg-white/[0.02] border border-white/5 rounded-3xl p-8"><CheckCircle2 className="w-10 h-10 text-emerald-500 mb-6"/><h3 className="text-xl font-semibold mb-3">Code establishes truth</h3><p className="text-white/50 text-sm leading-relaxed">Reconciliation, timestamps, amounts, identifiers and exposure come from deterministic source records and calculations.</p></div><div className="bg-white/[0.02] border border-white/5 rounded-3xl p-8"><ShieldCheck className="w-10 h-10 text-amber-500 mb-6"/><h3 className="text-xl font-semibold mb-3">Humans resolve uncertainty</h3><p className="text-white/50 text-sm leading-relaxed">Authorization and intent remain human responsibilities. PRIMHORA prepares evidence; it does not execute recovery.</p></div></div></section>
-    </main></div>;
+const PRODUCT_URL = 'https://firsthour-ui-n4cc.onrender.com/';
+
+function TiltCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [7, -7]), { stiffness: 180, damping: 18 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-7, 7]), { stiffness: 180, damping: 18 });
+  return (
+    <motion.div ref={ref} className={className} style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
+      onPointerMove={(event) => {
+        if (!ref.current) return;
+        const rect = ref.current.getBoundingClientRect();
+        x.set((event.clientX - rect.left) / rect.width - 0.5);
+        y.set((event.clientY - rect.top) / rect.height - 0.5);
+      }}
+      onPointerLeave={() => { x.set(0); y.set(0); }}>
+      {children}
+    </motion.div>
+  );
 }
 
+const layers = [
+  { number: '01', icon: FileSearch, title: 'AI interprets', text: 'Unstructured evidence becomes candidate claims with source references. Candidate claims stay untrusted until verified.', accent: 'orange' },
+  { number: '02', icon: CheckCircle2, title: 'Code establishes truth', text: 'Reconciliation, timestamps, amounts, identifiers and exposure come from deterministic records and calculations.', accent: 'lime' },
+  { number: '03', icon: ShieldCheck, title: 'Humans resolve uncertainty', text: 'Authorization and intent remain human responsibilities. PRIMHORA prepares evidence without executing recovery.', accent: 'bone' },
+];
+
+function App() {
+  return (
+    <div className="site-shell">
+      <div className="noise" aria-hidden="true" /><div className="ambient ambient-one" aria-hidden="true" /><div className="ambient ambient-two" aria-hidden="true" />
+      <nav className="nav">
+        <a className="brand" href="#" aria-label="PRIMHORA home"><span className="brand-mark"><ShieldAlert size={17} /></span><span>PRIMHORA</span></a>
+        <div className="nav-meta"><span className="status-dot" /><span>Evidence intelligence system</span></div>
+        <a className="nav-cta" href={PRODUCT_URL} target="_blank" rel="noreferrer">Explore product <ArrowRight size={15} /></a>
+      </nav>
+
+      <main>
+        <section className="hero">
+          <div className="hero-grid" aria-hidden="true" />
+          <div className="hero-copy">
+            <motion.div className="eyebrow" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7 }}><span className="eyebrow-pulse" />Financial incident investigation</motion.div>
+            <motion.h1 initial={{ opacity: 0, y: 35 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .85, delay: .08 }}>When money moves <span>wrong,</span><em>know what you can prove.</em></motion.h1>
+            <motion.p className="hero-lede" initial={{ opacity: 0, y: 25 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .8, delay: .18 }}>PRIMHORA reconstructs financial incidents from source records and fragmented evidence, verifies claims deterministically, and prepares an auditable evidence packet for human resolution.</motion.p>
+            <motion.div className="hero-actions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .7, delay: .3 }}>
+              <a className="button button-primary" href={PRODUCT_URL} target="_blank" rel="noreferrer">Explore the product <ArrowRight size={17} /></a>
+              <a className="button button-ghost" href="#architecture"><Play size={15} /> See the system</a>
+            </motion.div>
+            <motion.div className="hero-note" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: .55, duration: .7 }}><span>READ-ONLY BY DESIGN</span><span>•</span><span>SYNTHETIC DEMO DATA</span><span>•</span><span>NO MONEY IS MOVED</span></motion.div>
+          </div>
+
+          <div className="hero-object-wrap" aria-hidden="true">
+            <motion.div className="hero-object" initial={{ opacity: 0, scale: .75, rotate: -12 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ duration: 1.1, delay: .2, type: 'spring', stiffness: 70 }}>
+              <div className="orbit orbit-a" /><div className="orbit orbit-b" /><div className="orbit orbit-c" /><div className="core-shadow" />
+              <div className="core"><div className="core-inner"><ScanLine size={30} /><strong>TRUTH</strong><small>VERIFIED</small></div></div>
+              <div className="float-tag tag-top"><Activity size={13} /> LIVE EVIDENCE GRAPH</div>
+              <div className="float-tag tag-right"><Fingerprint size={13} /> SOURCE LOCKED</div>
+              <div className="float-tag tag-bottom"><Database size={13} /> DETERMINISTIC</div>
+            </motion.div>
+          </div>
+          <a className="scroll-cue" href="#architecture" aria-label="Scroll to architecture"><span>SCROLL TO DECODE</span><ChevronDown size={15} /></a>
+        </section>
+
+        <section id="architecture" className="section architecture">
+          <div className="section-heading"><div><span className="section-kicker">THE AUTHORITY STACK</span><h2>Three layers.<br /><span>One defensible answer.</span></h2></div><p>AI can interpret evidence. It cannot manufacture financial truth. PRIMHORA separates those jobs.</p></div>
+          <div className="layer-grid">
+            {layers.map((layer, index) => {
+              const Icon = layer.icon;
+              return <TiltCard key={layer.number} className="layer-card">
+                <div className={`layer-accent ${layer.accent}`} /><div className="layer-top"><span className="layer-number">{layer.number}</span><Icon size={21} /></div>
+                <div className="layer-content"><h3>{layer.title}</h3><p>{layer.text}</p></div>
+                <div className="layer-line"><motion.span initial={{ width: 0 }} whileInView={{ width: index === 0 ? '42%' : index === 1 ? '68%' : '92%' }} viewport={{ once: true }} transition={{ duration: 1, delay: .15 * index }} /></div>
+              </TiltCard>;
+            })}
+          </div>
+        </section>
+
+        <section className="section proof-section">
+          <div className="proof-frame">
+            <div className="proof-orbit" aria-hidden="true" />
+            <div className="proof-copy"><span className="section-kicker">THE DIFFERENCE</span><h2>From <span>“something looks wrong”</span> to an evidence packet someone can actually defend.</h2><p>Every conclusion has a trail. Source records establish facts. Calculations expose mismatches. Human review owns the final decision.</p><a className="text-link" href={PRODUCT_URL} target="_blank" rel="noreferrer">Open PRIMHORA <ArrowRight size={16} /></a></div>
+            <div className="proof-console" aria-hidden="true">
+              <div className="console-bar"><span /><span /><span /><b>incident_042</b></div>
+              <div className="console-row"><i>01</i><span>source_payment</span><strong>₹ 48,200</strong></div>
+              <div className="console-row"><i>02</i><span>ledger_record</span><strong>₹ 48,200</strong></div>
+              <div className="console-row warning"><i>03</i><span>authorization</span><strong>UNRESOLVED</strong></div>
+              <div className="console-row"><i>04</i><span>evidence_integrity</span><strong>VERIFIED</strong></div>
+              <div className="console-stamp">HUMAN DECISION REQUIRED</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="section closing"><Sparkles size={18} /><span className="section-kicker">THE LAST WORD</span><h2>Financial investigation should feel less like a spreadsheet hunt and more like an instrument panel.</h2><a className="button button-primary" href={PRODUCT_URL} target="_blank" rel="noreferrer">Enter PRIMHORA <ArrowRight size={17} /></a></section>
+      </main>
+
+      <footer><span>PRIMHORA © 2026</span><span>Financial incident investigation infrastructure</span><span>READ-ONLY • AUDITABLE • HUMAN-GOVERNED</span></footer>
+    </div>
+  );
+}
 export default App;
