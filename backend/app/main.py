@@ -32,9 +32,6 @@ if not settings.demo_mode:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if os.getenv("PRIMHORA_MIGRATION_TARGET_URL"):
-        from migrate_to_supabase import run as migrate_to_supabase
-        migrate_to_supabase()
     if settings.demo_mode and settings.demo_bootstrap_on_start:
         from seed.bootstrap import main as bootstrap_demo
         bootstrap_demo()
