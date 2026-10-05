@@ -23,6 +23,13 @@ This is an engineering gap register, not a claim that every item blocks the caps
 | Vision errors | Extraction errors could expose raw provider exception text. | Client receives a generic failure while the artifact remains unverified. |
 | Deployment IaC | Render blueprint contained stale/destructive startup behavior and stale frontend origins. | Blueprint was aligned with the current deployment model. |
 
+## Newly closed in the current production-hardening pass
+
+| Area | Discrepancy | Action |
+|---|---|---|
+| Supabase Data API exposure | `anon`/`authenticated` retained default table privileges despite RLS being enabled. | Revoked table, sequence and function privileges for both roles and codified the change as a migration. |
+| Database readiness | `/health` returned 200 without checking PostgreSQL connectivity. | `/health` now executes `SELECT 1` and returns 503 when the production database is unavailable. |
+
 ## Still not normal for a production MVP
 
 | Area | Current state | Required before external customer data |
