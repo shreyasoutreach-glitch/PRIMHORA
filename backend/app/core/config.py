@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Required in every environment. Production uses Neon PostgreSQL.
+    # Required in every environment. Production uses Supabase PostgreSQL.
     database_url: str
 
     demo_mode: bool = True
