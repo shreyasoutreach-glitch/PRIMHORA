@@ -1,8 +1,8 @@
 """
 SQLAlchemy engine/session wiring.
 
-Production uses Neon PostgreSQL through DATABASE_URL. Local Docker uses the
-same PostgreSQL dialect against the compose postgres service.
+Production uses Supabase PostgreSQL Session Pooler through DATABASE_URL.
+Local Docker uses the same PostgreSQL dialect against the compose postgres service.
 """
 import json
 from decimal import Decimal
