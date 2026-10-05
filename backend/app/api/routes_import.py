@@ -133,7 +133,7 @@ async def import_payouts_csv(
         )
         components = __import__("app.services.incident.detector", fromlist=["score_payout"]).score_payout(db, payout, baseline)
         from app.services.incident.scoring import incident_evidence_score
-        if incident_evidence_score(components) >= 70:
+        if incident_evidence_score(components) >= 60:
             incident_id = f"INC_{hashlib.sha256((merchant.id + payout.id).encode()).hexdigest()[:10]}"
             incidents.append(create_incident_from_payouts(
                 db, incident_id=incident_id, merchant_id=merchant.id,
