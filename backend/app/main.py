@@ -94,6 +94,7 @@ def root_head():
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check():
     # Render uses this endpoint for readiness. A static 200 would keep an
     # instance marked healthy even when the production database is unreachable.
