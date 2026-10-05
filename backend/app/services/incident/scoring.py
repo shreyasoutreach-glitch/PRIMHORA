@@ -105,16 +105,16 @@ def aggregate_incident_components(per_payout: list[ScoreComponents]) -> ScoreCom
     if not per_payout:
         raise ValueError("At least one payout is required")
 
-    def blend(values: list[float]) -> float:
-        return round((max(values) + sum(values) / len(values)) / 2.0, 4)
+    def mean(values: list[float]) -> float:
+        return round(sum(values) / len(values), 4)
 
     return ScoreComponents(
-        new_beneficiary=blend([c.new_beneficiary for c in per_payout]),
-        amount_anomaly=blend([c.amount_anomaly for c in per_payout]),
-        velocity_anomaly=blend([c.velocity_anomaly for c in per_payout]),
-        historical_novelty=blend([c.historical_novelty for c in per_payout]),
-        dormant_entity=blend([c.dormant_entity for c in per_payout]),
-        communication_correlation=blend([c.communication_correlation for c in per_payout]),
+        new_beneficiary=mean([c.new_beneficiary for c in per_payout]),
+        amount_anomaly=mean([c.amount_anomaly for c in per_payout]),
+        velocity_anomaly=mean([c.velocity_anomaly for c in per_payout]),
+        historical_novelty=mean([c.historical_novelty for c in per_payout]),
+        dormant_entity=mean([c.dormant_entity for c in per_payout]),
+        communication_correlation=mean([c.communication_correlation for c in per_payout]),
     )
 
 
