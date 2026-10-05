@@ -1,7 +1,8 @@
 """
-SQLAlchemy engine/session wiring. DATABASE_URL selects SQLite locally or
-Postgres on Render. The explicit psycopg2 dialect keeps SQLAlchemy 2.x from
-trying to import the psycopg3 driver when psycopg2-binary is installed.
+SQLAlchemy engine/session wiring.
+
+Production uses Neon PostgreSQL through DATABASE_URL. Local Docker uses the
+same PostgreSQL dialect against the compose postgres service.
 """
 import json
 from decimal import Decimal
@@ -26,9 +27,18 @@ if database_url.startswith("postgres://"):
 elif database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
-connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-engine = create_engine(database_url, connect_args=connect_args, json_serializer=custom_dumps)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=TenantScopedSession)
+engine = create_engine(
+    database_url,
+    json_serializer=custom_dumps,
+    pool_pre_ping=True,
+)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    class_=TenantScopedSession,
+)
 
 class Base(DeclarativeBase):
     pass
