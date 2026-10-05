@@ -12,6 +12,7 @@ jobs:
       run:
         working-directory: backend
     env:
+      DATABASE_URL: "sqlite:///./ci.db"
       DEMO_MODE: "true"
       DEMO_BOOTSTRAP_ON_START: "false"
     steps:
