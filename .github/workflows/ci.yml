@@ -27,6 +27,8 @@ jobs:
       - run: python -m pytest -q
       - name: Synthetic evaluation report
         run: python -c "import json; from app.evaluation.harness import run_full_evaluation; print(json.dumps(run_full_evaluation(), indent=2, default=str))"
+      - name: FTX public-source validation
+        run: python -m app.evaluation.ftx_validation
 
   frontend:
     runs-on: ubuntu-latest
