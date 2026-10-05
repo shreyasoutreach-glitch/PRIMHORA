@@ -2,23 +2,22 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-first_hour}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-first_hour}
-      POSTGRES_DB: ${POSTGRES_DB:-first_hour}
+      POSTGRES_USER: ${POSTGRES_USER:-primhora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
+      POSTGRES_DB: ${POSTGRES_DB:-primhora}
     ports:
       - "5432:5432"
     volumes:
-      - first_hour_pgdata:/var/lib/postgresql/data
+      - primhora_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-first_hour}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-primhora}"]
       interval: 5s
       timeout: 5s
       retries: 10
-
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-first_hour}:${POSTGRES_PASSWORD:-first_hour}@postgres:5432/${POSTGRES_DB:-first_hour}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-primhora}:${POSTGRES_PASSWORD:-change_me_locally}@postgres:5432/${POSTGRES_DB:-primhora}
       DEMO_MODE: ${DEMO_MODE:-true}
       DEMO_BOOTSTRAP_ON_START: ${DEMO_BOOTSTRAP_ON_START:-true}
       SEED: ${SEED:-42}
@@ -32,7 +31,6 @@ services:
       - "8000:8000"
     volumes:
       - evidence_storage:/app/storage/evidence
-
   frontend:
     build:
       context: ./frontend
@@ -42,7 +40,6 @@ services:
       - backend
     ports:
       - "8080:80"
-
 volumes:
-  first_hour_pgdata:
+  primhora_pgdata:
   evidence_storage:
