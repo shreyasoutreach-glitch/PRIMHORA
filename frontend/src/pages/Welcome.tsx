@@ -177,11 +177,11 @@ export default function Welcome() {
           </motion.div>
 
           <div className="grid gap-4">
-            {[
+            {([
               [Database, "Source-backed", "Financial events stay tied to their originating records."],
               [Fingerprint, "Evidence-native", "Artifacts, hashes and verification states travel with the case."],
               [ShieldCheck, "Human-governed", "Material recovery actions remain intentionally blocked in the product."],
-            ].map(([Icon, title, copy], i) => {
+            ] as Array<[LucideIcon, string, string]>).map(([Icon, title, copy], i) => {
               const ItemIcon = Icon;
               return <motion.div key={title} initial={{ opacity: 0, x: 10 }} whileInView={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.08, duration: 0.45 }} viewport={{ once: true }}
