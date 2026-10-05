@@ -78,8 +78,7 @@ The frontend uses `frontend/src/lib/api.ts` as the API boundary.
 - SQLAlchemy
 - Pydantic
 - Alembic
-- SQLite locally
-- PostgreSQL in the deployed shape
+- PostgreSQL locally and in production
 - PyJWT + JWKS validation for production OIDC
 - pypdf and ReportLab for evidence/packet handling
 
@@ -196,7 +195,7 @@ See [docs/PRODUCTION_AUTH.md](docs/PRODUCTION_AUTH.md).
 - **UI:** Vercel
 - **API:** Render
 - **Production UI:** https://primhora.vercel.app
-- **API origin:** https://firsthour-inei.onrender.com
+- **API:** Render web service (legacy Render subdomain retained temporarily; application identity is PRIMHORA)
 
 The canonical Vercel deployment rewrites `/api/*` to the Render API.
 
@@ -288,7 +287,7 @@ The repository currently contains **60 labeled customer-import regression cases*
 
 ## Production status
 
-PRIMHORA is a **verified capstone/product build with a live demo deployment**, not yet a fully production-ready service for external customer financial data.
+PRIMHORA is a **production-hardened capstone/product build with a live demo deployment**, not yet approved for unrestricted external customer financial data.
 
 ### Implemented
 
