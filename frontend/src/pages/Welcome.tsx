@@ -6,6 +6,7 @@ import {
   Fingerprint, GitBranch, Play, ShieldCheck, Sparkles, Terminal,
   TimerReset, Workflow
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const signalRows = [
   { label: "PAYOUT", value: "₹18.42L", note: "recipient cluster", tone: "hot" },
@@ -13,7 +14,7 @@ const signalRows = [
   { label: "EVIDENCE", value: "7 artifacts", note: "6 verified", tone: "good" },
 ];
 
-const steps = [
+const steps: Array<[string, string, string, LucideIcon]> = [
   ["01", "Detect", "Surface the break before the trail goes cold.", Activity],
   ["02", "Reconstruct", "Turn scattered records into one deterministic timeline.", GitBranch],
   ["03", "Decide", "Keep humans in control of every material action.", ShieldCheck],
@@ -158,7 +159,7 @@ export default function Welcome() {
 
         <div className="mt-24 grid gap-3 border-y border-white/10 py-5 sm:grid-cols-3">
           {steps.map(([num, title, copy, Icon], i) => {
-            const StepIcon = Icon as any;
+            const StepIcon = Icon;
             return <motion.div key={title} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08, duration: 0.45 }} viewport={{ once: true, margin: "-40px" }}
               className="group flex gap-4 rounded-2xl p-4 transition hover:bg-white/[0.025]">
@@ -181,7 +182,7 @@ export default function Welcome() {
               [Fingerprint, "Evidence-native", "Artifacts, hashes and verification states travel with the case."],
               [ShieldCheck, "Human-governed", "Material recovery actions remain intentionally blocked in the product."],
             ].map(([Icon, title, copy], i) => {
-              const ItemIcon = Icon as any;
+              const ItemIcon = Icon;
               return <motion.div key={title} initial={{ opacity: 0, x: 10 }} whileInView={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.08, duration: 0.45 }} viewport={{ once: true }}
                 className="landing-feature-card">
