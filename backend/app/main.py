@@ -64,8 +64,8 @@ app.include_router(routes_webhooks.router, prefix="/api")
 app.include_router(routes_workspace.router, prefix="/api")
 
 
-def _health_payload() -> dict:
-    return {"status": "ok", "service": "primhora"}
+def _health_payload(db_ok: bool = True) -> dict:
+    return {"status": "ok" if db_ok else "degraded", "service": "primhora", "database": "ok" if db_ok else "unavailable"}
 
 
 @app.middleware("http")
@@ -95,4 +95,15 @@ def root_head():
 
 @app.get("/health")
 def health_check():
-    return _health_payload()
+    # Render uses this endpoint for readiness. A static 200 would keep an
+    # instance marked healthy even when the production database is unreachable.
+    from sqlalchemy import text
+    from app.core.database import engine
+    from fastapi import HTTPException
+
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="database unavailable")
+    return _health_payload(True)
