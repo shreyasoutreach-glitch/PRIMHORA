@@ -21,6 +21,9 @@ This scorecard records verification status rather than product claims.
 - PDF evidence-packet export: implemented.
 - GitHub Actions CI: passing.
 - DB-backed API regression suite: 60 visible labeled cases passing in the latest verified CI run.
+- FTX public-source corpus: checked in with 4 primary-source provenance records and 8 evidence-grounded anchors.
+- FTX corpus validator: enforced in CI with SHA-256 integrity and anchor coverage checks.
+- Live Vercel smoke: canonical PRIMHORA HTML returns 200; /api/health contract was hardened to mirror backend DB readiness.
 
 ## Remaining gates
 | Requirement | Status |
@@ -46,11 +49,11 @@ This scorecard records verification status rather than product claims.
 
 ## Latest verification snapshot
 
-GitHub Actions run 36987965934 on 2 October 2026 passed the frontend lane, backend lane and Docker verification lane. The backend suite reported 152 passing tests and the synthetic evaluation step passed.
+GitHub Actions now includes the FTX public-source validation lane in the backend job. The latest run is executing against the new corpus and will be treated as the acceptance gate for this pass.
 
 ## Production verification
 
-The latest Render deployment from the merged hardening commit completed application startup and received a successful platform health request (HEAD / -> 200). The frontend build completed successfully and Render reported the site live.
+The latest Render deployment from the hardening line completed application startup. The canonical Vercel deployment returns the PRIMHORA application HTML with 200. A live smoke check exposed a /api/health routing mismatch; the backend now exposes /api/health as the same database-readiness check as /health.
 
 Browser-level verification of the complete first-run workflow is still pending because the available web fetch path cannot directly exercise the deployed SPA interactively.
 
