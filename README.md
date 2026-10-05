@@ -366,3 +366,20 @@ A synthetic benchmark is not production accuracy.
 A UI status is not a source-of-record fact.
 
 And an AI explanation is not financial truth.
+
+## FTX public-source validation
+
+The repository now includes a real-world FTX-2022 validation corpus under `cases/FTX-2022/`.
+
+The corpus is deliberately **document-grounded rather than synthetic transaction data**. It records public primary-source provenance from SEC enforcement complaints/releases and a U.S. Government Publishing Office congressional record, hashes the checked-in source metadata snapshots, and maps deterministic ground-truth anchors to their evidence.
+
+Run:
+
+```bash
+cd backend
+python -m app.evaluation.ftx_validation
+```
+
+The validator is part of CI. Current corpus targets are 100% source-hash integrity, 100% anchor-to-evidence coverage, and 0% unsupported anchors.
+
+This is **not** a claim of complete FTX transaction reconstruction. Private customer ledgers, bank statements and exchange database exports are not publicly included in this corpus. PRIMHORA therefore preserves the distinction between public-source forensic validation and transaction-level reconstruction.
