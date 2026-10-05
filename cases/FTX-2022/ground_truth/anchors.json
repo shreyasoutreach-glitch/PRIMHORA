@@ -1,0 +1,58 @@
+[
+  {
+    "id": "FTX-A01",
+    "type": "entity_link",
+    "claim": "SEC alleges FTX customer assets were diverted to Alameda Research.",
+    "evidence": ["sec_sbf_complaint_2022_12_13", "sec_ellison_wang_complaint_2022_12_21"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A02",
+    "type": "privilege",
+    "claim": "SEC alleges Alameda received special treatment on FTX, including a virtually unlimited customer-funded line of credit and exemptions from risk controls.",
+    "evidence": ["sec_sbf_complaint_2022_12_13", "sec_ellison_wang_complaint_2022_12_21"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A03",
+    "type": "market_mechanism",
+    "claim": "SEC alleges FTT was used as collateral and that Ellison manipulated FTT price to support the stated value of Alameda collateral.",
+    "evidence": ["sec_ellison_wang_complaint_2022_12_21"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A04",
+    "type": "software_control",
+    "claim": "SEC alleges FTX software code created a mechanism that allowed customer funds to be diverted to Alameda.",
+    "evidence": ["sec_ellison_wang_complaint_2022_12_21", "sec_singh_2023_02_28"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A05",
+    "type": "executive_transfer",
+    "claim": "SEC complaint records allegations of large Alameda loans to senior FTX executives and related real-estate spending.",
+    "evidence": ["sec_sbf_complaint_2022_12_13"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A06",
+    "type": "late_stage_transfer",
+    "claim": "SEC alleges additional customer funds were directed to Alameda even as FTX could no longer make customers whole.",
+    "evidence": ["sec_ellison_wang_complaint_2022_12_21", "sec_singh_2023_02_28"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  },
+  {
+    "id": "FTX-A07",
+    "type": "investigation_provenance",
+    "claim": "A congressional record documents that the House investigation had collected responsive FTX and SEC documents and interviewed witnesses by May 10, 2023.",
+    "evidence": ["house_ftx_investigation_summary_2023_05_10"],
+    "confidence": "GOVERNMENT_RECORD"
+  },
+  {
+    "id": "FTX-A08",
+    "type": "temporal_boundary",
+    "claim": "The SEC complaints describe the alleged scheme as spanning from at least May 2019 through November 2022.",
+    "evidence": ["sec_sbf_complaint_2022_12_13", "sec_ellison_wang_complaint_2022_12_21"],
+    "confidence": "PRIMARY_SOURCE_ALLEGATION"
+  }
+]
