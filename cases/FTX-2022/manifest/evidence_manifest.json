@@ -9,7 +9,7 @@
       "title": "SEC v. Samuel Bankman-Fried, Complaint, 1:22-cv-10501",
       "retrieved": "2026-10-05",
       "scope": "Primary enforcement complaint describing alleged diversion of FTX customer funds to Alameda, special treatment, FTT exposure, executive loans and real-estate purchases.",
-      "snapshot_sha256": "e92441b2a393503ce99b2911ba0b293a111fef94e1b0338132a485a69790aa69"
+      "snapshot_sha256": "bdaf41c565b5bb51e9d7e4e41a19da198fc3d96a3c1c60ee49a3274e0d4385fb"
     },
     "sec_ellison_wang_complaint_2022_12_21": {
       "url": "https://www.sec.gov/file/sec-complaint-2474",
@@ -17,7 +17,7 @@
       "title": "SEC v. Caroline Ellison and Zixiao Wang, Complaint, 1:22-cv-10794",
       "retrieved": "2026-10-05",
       "scope": "Primary enforcement complaint describing alleged Alameda privileges, customer-asset diversion, FTT manipulation, and the role of FTX software.",
-      "snapshot_sha256": "9121b47ee056ecd5cc5e376403fee79d245b179b1a3df6fbbf0a35e45ecd1704"
+      "snapshot_sha256": "d8315117248de3c8399eb8037451021c06dc17a2cc90940365a0d94dfdb9417c"
     },
     "sec_singh_2023_02_28": {
       "url": "https://www.sec.gov/enforcement-litigation/litigation-releases/lr-25652",
@@ -25,7 +25,7 @@
       "title": "SEC v. Nishad Singh, Litigation Release 25652",
       "retrieved": "2026-10-05",
       "scope": "Primary SEC release describing allegations concerning software enabling customer-fund diversion and additional transfers as FTX neared collapse.",
-      "snapshot_sha256": "953f1202b14b27b8e41f5fd2e81b6af27953df91b4dc48fb813ac2d7a4f8b356"
+      "snapshot_sha256": "8bc8e61abe147dec86e04b88d5fe1180ce2e5ba5f30ae850cd426edae59053fc"
     },
     "house_ftx_investigation_summary_2023_05_10": {
       "url": "https://www.govinfo.gov/content/pkg/CHRG-118hhrg52397/pdf/CHRG-118hhrg52397.pdf",
@@ -33,7 +33,7 @@
       "title": "FTX Investigation Summary, as of May 10, 2023",
       "retrieved": "2026-10-05",
       "scope": "Government record documenting the congressional investigation and responsive-document/witness collection status.",
-      "snapshot_sha256": "dc12a8efe4bfd45e0df291a432f57af4af9edfefa69840f6d74a217ee20452a2"
+      "snapshot_sha256": "32197220426609562952fcaeb727183a8455b0dda790adbc3c89de7f8a0744eb"
     }
   },
   "limitations": [
