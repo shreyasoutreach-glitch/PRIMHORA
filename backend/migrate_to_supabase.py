@@ -6,7 +6,7 @@ from typing import Any
 
 import psycopg2
 from psycopg2 import sql
-from psycopg2.extras import execute_values
+from psycopg2.extras import Json, execute_values
 
 
 def _connect(url: str):
@@ -33,6 +33,17 @@ def _columns(conn, table: str) -> list[str]:
             ORDER BY ordinal_position
         """, (table,))
         return [r[0] for r in cur.fetchall()]
+
+
+def _column_types(conn, table: str) -> dict[str, str]:
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=%s
+            ORDER BY ordinal_position
+        """, (table,))
+        return {name: data_type for name, data_type in cur.fetchall()}
 
 
 def _dependencies(conn) -> dict[str, set[str]]:
@@ -88,6 +99,7 @@ def _copy_table(source, target, table: str, batch_size: int = 1000) -> tuple[int
     columns = _columns(source, table)
     if not columns:
         return 0, 0
+    column_types = _column_types(source, table)
 
     with source.cursor(name=f"primhora_migrate_{table}") as src:
         src.itersize = batch_size
@@ -109,7 +121,12 @@ def _copy_table(source, target, table: str, batch_size: int = 1000) -> tuple[int
                 rows = src.fetchmany(batch_size)
                 if not rows:
                     break
-                execute_values(dst, insert_sql, rows, template=placeholders, page_size=batch_size)
+                adapted_rows = [
+                    tuple(Json(value) if column_types[column] in {"json", "jsonb"} and value is not None else value
+                          for column, value in zip(columns, row))
+                    for row in rows
+                ]
+                execute_values(dst, insert_sql, adapted_rows, template=placeholders, page_size=batch_size)
                 target.commit()
                 inserted += len(rows)
 
