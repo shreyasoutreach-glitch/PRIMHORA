@@ -22,7 +22,7 @@ export default {
       },
       fontFamily: {
         display: ["Manrope", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
-        ui: ["Manrope", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        ui: ["Inter", "Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
         label: ["IBM Plex Mono", "JetBrains Mono", "ui-monospace", "monospace"],
       },
       maxWidth: { canvas: "1600px" },
