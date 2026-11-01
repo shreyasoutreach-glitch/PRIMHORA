@@ -3,6 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Building2, CreditCard, ShieldCheck } from "lucide-react";
 import { StepFooter } from "../components/AppShell";
 
+const FIELDS = [
+  { key: "business", label: "Business name", wide: true, autoComplete: "organization" },
+  { key: "holder", label: "Account holder", autoComplete: "off" },
+  { key: "bank", label: "Bank / institution", autoComplete: "off" },
+  { key: "account", label: "Account number", autoComplete: "off", inputMode: "numeric" as const },
+  { key: "ifsc", label: "IFSC / routing code", autoComplete: "off" },
+] as const;
+
+const NEXT_STEPS = [
+  {
+    number: "01",
+    title: "Connect",
+    description: "Establish the synthetic financial workspace and review the available data boundary.",
+  },
+  {
+    number: "02",
+    title: "Investigate",
+    description: "Follow a simulated payment incident through its evidence and transaction history.",
+  },
+  {
+    number: "03",
+    title: "Recover",
+    description: "Review the findings and prepare a human-reviewed recovery packet.",
+  },
+];
+
 export default function DemoSetup() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
@@ -13,95 +39,113 @@ export default function DemoSetup() {
     ifsc: "DEMO0001234",
   });
 
-  const update = (key: keyof typeof form, value: string) =>
+  const update = (key: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
 
-  const start = (e: React.FormEvent) => {
-    e.preventDefault();
-    sessionStorage.setItem("primhora_demo_account", JSON.stringify(form));
+  const start = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    // This profile is demo-only. Storage failure must not block the synthetic workflow.
+    try {
+      sessionStorage.setItem("primhora_demo_account", JSON.stringify(form));
+    } catch {
+      // The demo can continue without the optional display profile.
+    }
     navigate("/connect?mode=demo");
   };
 
   return (
-    <div className="max-w-canvas mx-auto px-6 sm:px-10 py-14">
-      <div className="max-w-[760px] mb-10">
-        <p className="label-eyebrow mb-4">Demo setup · 01</p>
-        <h1 className="font-display text-[38px] sm:text-[52px] leading-[1.02] mb-5">
-          Give Primhora a financial account to work with.
+    <main className="workspace-page">
+      <section className="workspace-heading">
+        <p className="label-eyebrow workspace-kicker">Demo setup <span aria-hidden="true">/</span> 01 of 03</p>
+        <h1 className="font-display workspace-title">
+          Give PRIMHORA a financial account to work with.
         </h1>
-        <p className="text-[16px] leading-relaxed text-text_primary/65 max-w-[620px]">
-          This creates a private, fictional workspace for the demonstration. Nothing is sent to a bank,
-          payment gateway, or external financial network.
+        <p className="workspace-lede">
+          Set up a fictional business profile for the demonstration. PRIMHORA uses a synthetic ledger;
+          no bank, payment gateway, or external financial network is contacted.
         </p>
-      </div>
+      </section>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
-        <form onSubmit={start} className="paper-card p-7 sm:p-9">
-          <div className="flex items-center gap-3 mb-7">
-            <div className="w-10 h-10 rounded-xl bg-forest/5 border border-forest/10 flex items-center justify-center">
-              <Building2 size={18} />
+      <div className="workspace-layout">
+        <form onSubmit={start} className="paper-card workspace-form-card">
+          <div className="workspace-card-heading">
+            <div className="workspace-card-icon" aria-hidden="true">
+              <Building2 size={19} strokeWidth={1.8} />
             </div>
-            <div>
-              <p className="font-display text-[19px]">Business workspace</p>
-              <p className="text-[12px] text-text_primary/45">Use fictional details for the demo.</p>
+            <div className="min-w-0">
+              <h2 className="font-display workspace-card-title">Business workspace</h2>
+              <p className="workspace-card-subtitle">Use fictional details for this demo.</p>
             </div>
+            <span className="workspace-mode">DEMO MODE</span>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-5">
-            {[
-              ["business", "Business name"],
-              ["holder", "Account holder"],
-              ["bank", "Bank / institution"],
-              ["account", "Account number"],
-              ["ifsc", "IFSC / routing code"],
-            ].map(([key, label], i) => (
-              <label key={key} className={i === 0 ? "sm:col-span-2" : ""}>
-                <span className="label-eyebrow block mb-2">{label}</span>
+          <div className="workspace-fields">
+            {FIELDS.map((field) => (
+              <label
+                key={field.key}
+                htmlFor={`demo-${field.key}`}
+                className={"wide" in field && field.wide ? "workspace-field workspace-field-wide" : "workspace-field"}
+              >
+                <span className="label-eyebrow workspace-field-label">{field.label}</span>
                 <input
-                  value={form[key as keyof typeof form]}
-                  onChange={(e) => update(key as keyof typeof form, e.target.value)}
+                  id={`demo-${field.key}`}
+                  name={field.key}
+                  type="text"
+                  inputMode={"inputMode" in field ? field.inputMode : "text"}
+                  autoComplete={field.autoComplete}
+                  value={form[field.key]}
+                  onChange={(event) => update(field.key, event.target.value)}
+                  maxLength={field.key === "account" ? 18 : 96}
+                  spellCheck={false}
                   required
-                  className="w-full bg-graphite border border-forest/15 rounded-lg px-4 py-3 text-[14px] outline-none focus:border-gold/60"
+                  className="workspace-input"
+                  aria-describedby="demo-data-note"
                 />
               </label>
             ))}
           </div>
 
-          <div className="mt-7 p-4 rounded-xl bg-gold/5 border border-gold/15 flex gap-3">
-            <ShieldCheck size={17} className="shrink-0 mt-0.5 text-text_secondary" />
-            <p className="text-[12px] leading-relaxed text-text_primary/55">
-              Demo only. Primhora does not validate or connect this account. Do not enter real banking
-              credentials here.
+          <div id="demo-data-note" className="workspace-note" role="note">
+            <ShieldCheck size={18} className="workspace-note-icon" aria-hidden="true" />
+            <p>
+              <strong>Demo data only.</strong> These details are used for the on-screen demonstration.
+              PRIMHORA does not validate or connect this account. Never enter real banking credentials.
             </p>
           </div>
 
-          <button className="btn-primary mt-7 inline-flex items-center gap-2" type="submit">
-            Enter the Primhora demo <ArrowRight size={15} />
-          </button>
+          <div className="workspace-form-footer">
+            <button className="btn-primary workspace-submit" type="submit">
+              Enter the PRIMHORA demo <ArrowRight size={16} />
+            </button>
+            <span className="workspace-footer-hint">No live financial action will be performed.</span>
+          </div>
         </form>
 
-        <aside className="paper-card p-7">
-          <CreditCard size={20} className="mb-5 text-text_secondary" />
-          <p className="label-eyebrow mb-3">What happens next</p>
-          <ol className="space-y-5">
-            {[
-              ["01", "Connect", "Primhora establishes the simulated financial workspace."],
-              ["02", "Investigate", "A synthetic payment incident appears and the system builds the case."],
-              ["03", "Recover", "Evidence, human review and a simulated recovery command complete the loop."],
-            ].map(([n, title, copy]) => (
-              <li key={n} className="flex gap-4">
-                <span className="font-label text-[11px] text-text_primary/30 pt-1">{n}</span>
-                <div>
-                  <p className="font-display text-[16px] mb-1">{title}</p>
-                  <p className="text-[12px] leading-relaxed text-text_primary/50">{copy}</p>
+        <aside className="paper-card workspace-steps-card" aria-labelledby="workspace-next-title">
+          <div className="workspace-aside-icon" aria-hidden="true">
+            <CreditCard size={19} strokeWidth={1.8} />
+          </div>
+          <p id="workspace-next-title" className="label-eyebrow workspace-aside-kicker">What happens next</p>
+          <ol className="workspace-steps-list">
+            {NEXT_STEPS.map((step) => (
+              <li key={step.number} className="workspace-step">
+                <span className="workspace-step-index">{step.number}</span>
+                <div className="min-w-0">
+                  <h3 className="font-display workspace-step-title">{step.title}</h3>
+                  <p className="workspace-step-copy">{step.description}</p>
                 </div>
               </li>
             ))}
           </ol>
+          <div className="workspace-aside-foot">
+            <span className="workspace-aside-status" aria-hidden="true" />
+            <span>Isolated synthetic environment</span>
+          </div>
         </aside>
       </div>
 
       <StepFooter current="/connect" />
-    </div>
+    </main>
   );
 }
