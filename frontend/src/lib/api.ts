@@ -16,8 +16,21 @@ const DEMO_TOKENS: Record<string, string> = {};
 export async function getDemoToken(role = "ADMINISTRATOR"): Promise<string> {
   if (DEMO_TOKENS[role]) return DEMO_TOKENS[role];
   const res = await fetch(`${BASE}/demo/session?role=${encodeURIComponent(role)}`, { method: "POST" });
-  if (!res.ok) throw new Error("Demo session could not be established");
+  if (!res.ok) {
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      let responseText = "";
+      try { responseText = await res.text(); } catch {}
+      data = { detail: responseText || res.statusText || "The API rejected the demo session request." };
+    }
+    throw new APIError(res.status, data);
+  }
   const data = await res.json();
+  if (!data || typeof data.token !== "string" || !data.token) {
+    throw new Error("The API returned a successful response without a demo access token.");
+  }
   DEMO_TOKENS[role] = data.token;
   if (role === "ADMINISTRATOR") DEMO_TOKEN = data.token;
   return data.token;
