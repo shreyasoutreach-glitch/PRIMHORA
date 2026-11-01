@@ -85,14 +85,14 @@ export default function DemoSetup() {
               <label
                 key={field.key}
                 htmlFor={`demo-${field.key}`}
-                className={field.wide ? "workspace-field workspace-field-wide" : "workspace-field"}
+                className={"wide" in field && field.wide ? "workspace-field workspace-field-wide" : "workspace-field"}
               >
                 <span className="label-eyebrow workspace-field-label">{field.label}</span>
                 <input
                   id={`demo-${field.key}`}
                   name={field.key}
                   type="text"
-                  inputMode={field.inputMode ?? "text"}
+                  inputMode={"inputMode" in field ? field.inputMode : "text"}
                   autoComplete={field.autoComplete}
                   value={form[field.key]}
                   onChange={(event) => update(field.key, event.target.value)}
