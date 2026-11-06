@@ -193,11 +193,12 @@ export const api = {
     requestAs<any>(actingToken, `/recovery-commands/${commandId}/verify`, { method: "POST" }),
   getConvergence: (commandId: string) =>
     request<any>(`/recovery-commands/${commandId}/convergence`),
-  importPayoutCsv: async (file: File, merchantName: string) => {
+  importPayoutCsv: async (file: File, merchantName: string, importMode: "baseline" | "monitor" = "monitor") => {
     const token = getAccessToken ? await getAccessToken() : await getDemoToken("ADMINISTRATOR");
     const form = new FormData();
     form.append("file", file);
     form.append("merchant_name", merchantName);
+    form.append("import_mode", importMode);
     const res = await fetch(`${BASE}/import/payouts-csv`, { method: "POST", body: form, headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) { let data:any; try { data = await res.json(); } catch { data = {detail: res.statusText}; } throw new APIError(res.status, data); }
     return res.json();
