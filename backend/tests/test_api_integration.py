@@ -428,6 +428,51 @@ def test_baseline_import_then_monitor_creates_currency_aware_case(client):
     assert monitored.json()["skipped_for_insufficient_baseline"] == 0
 
 
+def test_demo_csv_import_is_blocked_for_shared_public_identity(client, monkeypatch):
+    from app.api import routes_import
+
+    monkeypatch.setattr(routes_import.settings, "demo_allow_external_ingestion", False)
+    csv = (
+        b"transaction_id,timestamp,amount,currency,status,beneficiary_name,account_number,ifsc\\n"
+        b"BLOCKED-001,2026-09-30T10:00:00+00:00,15000,INR,processed,Vendor A,XXXX1111,ABCD0001234\\n"
+    )
+    response = client["client"].post(
+        "/api/import/payouts-csv",
+        files={"file": ("payouts.csv", csv, "text/csv")},
+        data={"merchant_name": "Must Not Be Created"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert response.status_code == 403
+    assert "shared demo identity" in response.json()["detail"]
+
+
+def test_demo_evidence_upload_is_blocked_for_shared_public_identity(client, monkeypatch):
+    from app.api import routes_evidence
+
+    monkeypatch.setattr(routes_evidence.settings, "demo_allow_external_ingestion", False)
+    response = client["client"].post(
+        "/api/evidence/upload",
+        files={"file": ("statement.txt", b"confidential customer statement", "text/plain")},
+        data={"merchant_id": "MER_API"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert response.status_code == 403
+    assert "shared demo identity" in response.json()["detail"]
+
+
+def test_provider_webhook_is_disabled_in_demo_mode(client, monkeypatch):
+    from app.api import routes_webhooks
+
+    monkeypatch.setattr(routes_webhooks.settings, "demo_mode", True)
+    response = client["client"].post(
+        "/api/webhooks/razorpay",
+        content=b"{}",
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 404
+    assert "disabled in demo mode" in response.json()["detail"]
+
+
 def test_demo_injection_cannot_target_another_tenant_merchant(client):
     db = client["session_factory"]()
     try:

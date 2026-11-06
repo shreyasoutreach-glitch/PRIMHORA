@@ -174,7 +174,7 @@ PRIMHORA therefore **prepares and verifies a recovery packet; it does not execut
 
 ### Demo mode
 
-Demo mode uses synthetic bearer credentials and a seeded synthetic tenant. The demo-session endpoint is the unauthenticated bootstrap surface, and it is available only when `DEMO_MODE=true`. Destructive demo reset/injection operations remain administrator-only.
+Demo mode uses synthetic bearer credentials and a seeded synthetic tenant. The demo-session endpoint is the unauthenticated bootstrap surface, and it is available only when `DEMO_MODE=true`. It is for synthetic walkthroughs only. CSV ingestion, evidence uploads and provider webhooks are blocked by default while the shared demo identity is active (`DEMO_ALLOW_EXTERNAL_INGESTION=false`). Do not enable that override on a public/shared deployment. Destructive demo reset is disabled by default; demo scenario injection remains limited to the authenticated demo tenant.
 
 ### Production mode
 

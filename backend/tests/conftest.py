@@ -1,5 +1,7 @@
 import os
 os.environ["DEMO_MODE"] = "true"
+# Test fixtures use an isolated SQLite database and explicit synthetic records.
+os.environ["DEMO_ALLOW_EXTERNAL_INGESTION"] = "true"
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
+from app.core.config import get_settings
 from app.models import entities as m
 from app.services.integrations.razorpayx import (
     RazorpayXNotConfigured,
@@ -16,6 +17,7 @@ from app.services.integrations.razorpayx import (
 )
 
 router = APIRouter(tags=["webhooks"])
+settings = get_settings()
 
 
 def _upsert_payout(db: Session, merchant_id: str, payload: dict) -> str:
@@ -90,6 +92,8 @@ async def razorpay_webhook(
     x_razorpay_signature: str = Header(default=""),
     x_razorpay_event_id: str = Header(default=""),
 ):
+    if settings.demo_mode:
+        raise HTTPException(404, "Provider webhooks are disabled in demo mode")
     secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
     merchant_id = os.environ.get("RAZORPAY_MERCHANT_ID", "")
     if not secret or not merchant_id:

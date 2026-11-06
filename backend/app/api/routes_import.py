@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.audit.logger import log as audit_log
 from app.core.authz import get_tenant_db, require_permission
+from app.core.config import get_settings
 from app.models import entities as m
 from app.services.incident.detector import (
     build_baseline,
@@ -20,6 +21,7 @@ from app.services.incident.scoring import incident_evidence_score
 from app.services.imports.csv_payouts import normalize_payout_rows
 
 router = APIRouter(tags=["imports"])
+settings = get_settings()
 
 MIN_BASELINE_OBSERVATIONS = 10
 MAX_IMPORT_ROWS = 50_000
@@ -39,6 +41,12 @@ async def import_payouts_csv(
     db: Session = Depends(get_tenant_db),
     user: m.User = Depends(require_permission("INVESTIGATE")),
 ):
+    if settings.demo_mode and not settings.demo_allow_external_ingestion:
+        raise HTTPException(
+            403,
+            "External CSV ingestion is disabled while the shared demo identity is active. "
+            "Configure production OIDC and disable DEMO_MODE before accepting customer financial data.",
+        )
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(400, "Only CSV imports are supported by this endpoint")
     import_mode = import_mode.strip().lower()

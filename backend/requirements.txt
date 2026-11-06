@@ -8,10 +8,11 @@ psycopg2-binary
 pytest
 Faker
 anthropic
-google-genai==0.3.0
+google-genai==2.33.0
 razorpay==1.4.1
 PyJWT
 cryptography
 pypdf
+Pillow==13.0.0
 
 reportlab
