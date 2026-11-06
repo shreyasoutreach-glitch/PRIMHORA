@@ -7,6 +7,43 @@
  */
 const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
+// Render's free instance can sleep after inactivity. Wake it through the
+// database-aware health check, then retry transient proxy/startup failures.
+// The demo-session POST is idempotent: it returns an existing synthetic user
+// token and does not create financial records or mutate customer data.
+const TRANSIENT_HTTP_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524]);
+const COLD_START_RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 7_000, 10_000, 10_000, 10_000];
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function fetchThroughColdStart(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  let lastNetworkError: unknown;
+
+  for (let attempt = 0; attempt <= COLD_START_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const response = await fetch(url, { ...init, cache: "no-store" });
+      if (!TRANSIENT_HTTP_STATUSES.has(response.status) || attempt === COLD_START_RETRY_DELAYS_MS.length) {
+        return response;
+      }
+      lastNetworkError = new Error(`Temporary API response: HTTP ${response.status}`);
+    } catch (error) {
+      lastNetworkError = error;
+    }
+
+    const retryDelay = COLD_START_RETRY_DELAYS_MS[attempt];
+    if (retryDelay !== undefined) await delay(retryDelay);
+  }
+
+  throw new Error(
+    `PRIMHORA API did not wake successfully. ${lastNetworkError instanceof Error ? lastNetworkError.message : "Network request failed."}`,
+  );
+}
+
 // Demo credentials are issued by the backend at runtime and are never bundled.
 let DEMO_TOKEN = "";
 let WORKSPACE_TOKEN = "";
@@ -15,9 +52,33 @@ const DEMO_TOKENS: Record<string, string> = {};
 
 export async function getDemoToken(role = "ADMINISTRATOR"): Promise<string> {
   if (DEMO_TOKENS[role]) return DEMO_TOKENS[role];
-  const res = await fetch(`${BASE}/demo/session?role=${encodeURIComponent(role)}`, { method: "POST" });
-  if (!res.ok) throw new Error("Demo session could not be established");
+
+  // A health request wakes a sleeping Render instance before session creation.
+  // The retry loop also covers transient 502/503/504 responses during startup.
+  const health = await fetchThroughColdStart(`${BASE}/health`, { method: "GET" });
+  if (!health.ok) {
+    throw new Error(`PRIMHORA API health check failed (HTTP ${health.status}). Try again once the service is awake.`);
+  }
+
+  const res = await fetchThroughColdStart(
+    `${BASE}/demo/session?role=${encodeURIComponent(role)}`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = typeof body?.detail === "string" ? body.detail : "";
+    } catch {
+      detail = res.statusText;
+    }
+    throw new Error(detail || `Demo session could not be established (HTTP ${res.status})`);
+  }
+
   const data = await res.json();
+  if (typeof data?.token !== "string" || !data.token) {
+    throw new Error("The demo service responded without a session token.");
+  }
   DEMO_TOKENS[role] = data.token;
   if (role === "ADMINISTRATOR") DEMO_TOKEN = data.token;
   return data.token;
