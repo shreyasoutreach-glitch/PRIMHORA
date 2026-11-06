@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from decimal import Decimal, InvalidOperation
 
 ALIASES = {
@@ -49,13 +50,18 @@ def normalize_payout_rows(rows: list[dict[str, str]]) -> list[dict]:
             amount = Decimal(amount_raw)
         except InvalidOperation as exc:
             raise ValueError(f"row {index}: invalid amount") from exc
+        if not amount.is_finite():
+            raise ValueError(f"row {index}: amount must be a finite number")
         if amount < 0:
             raise ValueError(f"row {index}: amount must not be negative")
+        currency = (_pick(row, "currency") or "INR").strip().upper()
+        if not re.fullmatch(r"[A-Z]{3}", currency):
+            raise ValueError(f"row {index}: currency must be a 3-letter ISO-style code")
         parsed.append({
             "source_id": source_id,
             "timestamp": _parse_timestamp(timestamp_raw),
             "amount": amount,
-            "currency": (_pick(row, "currency") or "INR").upper(),
+            "currency": currency,
             "status": _pick(row, "status") or "processed",
             "beneficiary": _pick(row, "beneficiary") or "Unknown beneficiary",
             "beneficiary_id": _pick(row, "beneficiary_id"),

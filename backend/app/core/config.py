@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     demo_mode: bool = True
     demo_bootstrap_on_start: bool = False
+    # Global reset destroys every tenant in the demo database. Keep disabled
+    # on shared deployments; enable only on an isolated development instance.
+    demo_allow_global_reset: bool = False
     demo_master_token: str = ""
     seed: int = 42
     evidence_storage_dir: str = "./storage/evidence"

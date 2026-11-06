@@ -66,7 +66,14 @@ def sync_financial_events_for_payouts(db: Session, payouts: list[m.Payout], sour
     return created
 
 
-def build_baseline(db: Session, merchant_id: str, exclude_payout_ids: set[str] | None = None) -> MerchantBaseline:
+def build_baseline(
+    db: Session,
+    merchant_id: str,
+    exclude_payout_ids: set[str] | None = None,
+    *,
+    currency: str | None = None,
+    before: dt.datetime | None = None,
+) -> MerchantBaseline:
     """The behavioral baseline is always computed from non-injected history.
     A payout marked is_injected (seeded flagship incident or a live Chaos Lab
     scenario) is, by definition, the thing being measured against the
@@ -74,7 +81,14 @@ def build_baseline(db: Session, merchant_id: str, exclude_payout_ids: set[str] |
     incident would quietly shrink its own anomaly score."""
     exclude_payout_ids = exclude_payout_ids or set()
     payouts = db.query(m.Payout).filter(m.Payout.merchant_id == merchant_id).all()
-    historical = [p.amount for p in payouts if p.id not in exclude_payout_ids and not p.is_injected]
+    currency_code = currency.upper() if currency else None
+    historical = [
+        p.amount for p in payouts
+        if p.id not in exclude_payout_ids
+        and not p.is_injected
+        and (currency_code is None or p.currency.upper() == currency_code)
+        and (before is None or p.created_at < before)
+    ]
     injected_contact_ids = {p.contact_id for p in payouts if p.is_injected}
     contact_query = db.query(m.Contact).filter(m.Contact.merchant_id == merchant_id)
     if injected_contact_ids:
@@ -114,6 +128,7 @@ def score_payout(db: Session, payout: m.Payout, baseline: MerchantBaseline,
         db.query(m.Payout)
         .filter(
             m.Payout.merchant_id == payout.merchant_id,
+            m.Payout.currency == payout.currency,
             m.Payout.created_at < payout.created_at,
         )
         .all()
@@ -149,7 +164,7 @@ def create_incident_from_payouts(
         raise ValueError("No payouts supplied for incident")
 
     sync_financial_events_for_payouts(db, payouts)
-    baseline = build_baseline(db, merchant_id, exclude_payout_ids={p.id for p in payouts})
+    incident_payout_ids = {p.id for p in payouts}
 
     comm_events = db.query(m.CommunicationEvent).filter(m.CommunicationEvent.incident_id == incident_id).all()
 
@@ -161,6 +176,12 @@ def create_incident_from_payouts(
             None,
         )
         comm_status = matching_comm.correlation_status if matching_comm else "UNCORRELATED"
+        # Compare only with earlier history in the same currency. A USD payout
+        # must never inflate or suppress an INR anomaly (or vice versa).
+        baseline = build_baseline(
+            db, merchant_id, exclude_payout_ids=incident_payout_ids,
+            currency=payout.currency, before=payout.created_at,
+        )
         components = score_payout(db, payout, baseline, comm_status)
         per_payout_components.append(components)
 

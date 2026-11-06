@@ -55,6 +55,8 @@ def demo_reset(
 ):
     if not settings.demo_mode:
         raise HTTPException(403, "DEMO_MODE is disabled")
+    if not settings.demo_allow_global_reset:
+        raise HTTPException(403, "Global demo reset is disabled for this deployment.")
     from seed.seed import run_seed
 
     result = run_seed(db, seed_value=settings.seed)
