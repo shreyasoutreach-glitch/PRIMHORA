@@ -186,6 +186,7 @@ export default function SaaSDataSources() {
                     <Mini label="Mode" value={String(importResult.import_mode || importMode).toUpperCase()} />
                   </div>
                   {importResult.monitoring_note && <p className="mt-4 text-[11px] leading-relaxed text-text_primary/45">{importResult.monitoring_note}</p>}
+                  {importResult.source_file_sha256 && <p className="mt-3 break-all font-mono text-[10px] text-text_primary/30">Source fingerprint · {importResult.source_file_sha256}</p>}
                   <Link to="/app/incidents" className="inline-flex items-center gap-2 mt-4 text-xs text-text_primary/55 hover:text-text_primary">Open incident queue <ChevronRight size={13} /></Link>
                 </div>
               )}

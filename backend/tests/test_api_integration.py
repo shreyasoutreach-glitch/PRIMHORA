@@ -1,4 +1,5 @@
 import datetime as dt
+import hashlib
 
 import pytest
 from fastapi.testclient import TestClient
@@ -237,6 +238,19 @@ def test_generic_csv_import_creates_read_only_case(client):
     assert body["read_only"] is True
     assert body["incident_count"] >= 0
     assert len(body["imported_payout_ids"]) == 1
+    source_hash = hashlib.sha256(csv).hexdigest()
+    assert body["source_file_sha256"] == source_hash
+
+    db = client["session_factory"]()
+    try:
+        with tenant_scope(db, TEST_TENANT):
+            financial_event = db.get(m.FinancialEvent, f"FEV_PYO_{body['imported_payout_ids'][0]}")
+            assert financial_event is not None
+            assert financial_event.extraction_method == "csv_import"
+            assert financial_event.attributes["source_file_sha256"] == source_hash
+            assert financial_event.attributes["source_row_number"] == 2
+    finally:
+        db.close()
 
 
 def test_recovery_execute_route_is_read_only(client):
@@ -412,3 +426,27 @@ def test_baseline_import_then_monitor_creates_currency_aware_case(client):
     assert monitored.status_code == 200, monitored.text
     assert monitored.json()["incident_count"] >= 1
     assert monitored.json()["skipped_for_insufficient_baseline"] == 0
+
+
+def test_demo_injection_cannot_target_another_tenant_merchant(client):
+    db = client["session_factory"]()
+    try:
+        db.add(m.Tenant(id="TEN_OTHER_DEMO", name="Other Tenant"))
+        db.commit()
+        with tenant_scope(db, "TEN_OTHER_DEMO"):
+            db.add(m.Merchant(
+                id="MER_OTHER_TENANT",
+                name="Other Tenant Merchant",
+                category="industrial",
+            ))
+            db.commit()
+    finally:
+        db.close()
+
+    response = client["client"].post(
+        "/api/demo/inject-incident",
+        json={"scenario": "new_beneficiary_burst", "merchant_id": "MER_OTHER_TENANT"},
+        headers=auth(client["tokens"]["ADMINISTRATOR"]),
+    )
+    assert response.status_code == 404
+    assert "not found in this demo workspace" in response.json()["detail"]

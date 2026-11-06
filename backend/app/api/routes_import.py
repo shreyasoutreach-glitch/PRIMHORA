@@ -46,6 +46,7 @@ async def import_payouts_csv(
         raise HTTPException(400, "import_mode must be 'baseline' or 'monitor'")
 
     data = await file.read()
+    source_file_sha256 = hashlib.sha256(data).hexdigest()
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(413, "CSV exceeds the 10 MB import limit")
 
@@ -81,6 +82,7 @@ async def import_payouts_csv(
             db.flush()
 
     imported_ids: list[str] = []
+    payout_source_rows: dict[str, int] = {}
     skipped = 0
     errors: list[str] = []
 
@@ -153,6 +155,7 @@ async def import_payouts_csv(
             db.add(payout)
             db.flush()
             imported_ids.append(payout.id)
+            payout_source_rows[payout.id] = row_number
         except (ValueError, TypeError) as exc:
             errors.append(f"row {row_number}: {exc}")
 
@@ -163,6 +166,21 @@ async def import_payouts_csv(
     imported_payouts = [db.get(m.Payout, pid) for pid in imported_ids]
     imported_payouts = [p for p in imported_payouts if p is not None]
     sync_financial_events_for_payouts(db, imported_payouts, source_system=source_system)
+    # CSV is a user-supplied source, not a verified provider feed. Preserve a
+    # fingerprint + row pointer and label the ingestion honestly; do not retain
+    # the raw financial file a second time in the database.
+    for payout in imported_payouts:
+        financial_event = db.get(m.FinancialEvent, f"FEV_PYO_{payout.id}")
+        if financial_event is None:
+            continue
+        financial_event.extraction_method = "csv_import"
+        financial_event.attributes = {
+            **(financial_event.attributes or {}),
+            "source_file_sha256": source_file_sha256,
+            "source_file_name": (file.filename or "upload.csv")[:200],
+            "source_row_number": payout_source_rows.get(payout.id),
+        }
+        db.add(financial_event)
 
     currencies = sorted({row["currency"] for row in parsed_rows})
     excluded_ids = set(imported_ids)
@@ -218,6 +236,8 @@ async def import_payouts_csv(
             "errors": len(errors),
             "baseline_observations": baseline_observations,
             "insufficient_baseline_rows": skipped_for_insufficient_baseline,
+            "source_file_sha256": source_file_sha256,
+            "source_file_name": (file.filename or "upload.csv")[:200],
         },
     )
     db.commit()
@@ -260,5 +280,7 @@ async def import_payouts_csv(
         "minimum_baseline_observations": MIN_BASELINE_OBSERVATIONS,
         "skipped_for_insufficient_baseline": skipped_for_insufficient_baseline,
         "monitoring_note": monitoring_note,
+        "source_file_sha256": source_file_sha256,
+        "source_file_name": (file.filename or "upload.csv")[:200],
         "read_only": True,
     }

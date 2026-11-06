@@ -7,7 +7,7 @@ from app.core.authz import get_system_db, require_permission
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.demo.chaos_lab import inject_scenario
-from app.models.entities import User
+from app.models.entities import Merchant, User
 from app.schemas.schemas import DemoResetResponse, InjectIncidentRequest, InjectIncidentResponse
 
 router = APIRouter(tags=["demo"])
@@ -40,10 +40,13 @@ def demo_session(role: str = "ADMINISTRATOR", db: Session = Depends(get_db)):
 def demo_inject_incident(
     body: InjectIncidentRequest,
     db: Session = Depends(get_system_db),
-    _user: User = Depends(require_permission("EXECUTE")),
+    user: User = Depends(require_permission("EXECUTE")),
 ):
     if not settings.demo_mode:
         raise HTTPException(403, "DEMO_MODE is disabled")
+    merchant = db.get(Merchant, body.merchant_id)
+    if merchant is None or merchant.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Merchant not found in this demo workspace")
     result = inject_scenario(db, body.scenario, body.merchant_id)
     return InjectIncidentResponse(**result)
 
