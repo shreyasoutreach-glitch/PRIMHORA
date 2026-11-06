@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Global reset destroys every tenant in the demo database. Keep disabled
     # on shared deployments; enable only on an isolated development instance.
     demo_allow_global_reset: bool = False
+    # Shared public demo credentials must never accept third-party financial data.
+    # Enable only on an isolated, access-controlled development environment.
+    demo_allow_external_ingestion: bool = False
     demo_master_token: str = ""
     seed: int = 42
     evidence_storage_dir: str = "./storage/evidence"
