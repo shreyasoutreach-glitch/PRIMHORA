@@ -67,15 +67,18 @@ async def import_payouts_csv(
 
     # Resolve/create the merchant only after the entire file passes structural
     # validation, so malformed uploads cannot leave empty merchant records.
-    merchant = db.get(m.Merchant, merchant_id) if merchant_id else None
-    if merchant is None:
+    if merchant_id:
+        merchant = db.get(m.Merchant, merchant_id)
+        if merchant is None:
+            raise HTTPException(404, "Merchant not found in this workspace")
+    else:
         name = merchant_name.strip() or file.filename.rsplit(".", 1)[0]
-        merchant = m.Merchant(
-            id=f"MER_{hashlib.sha256((user.tenant_id + name).encode()).hexdigest()[:10]}",
-            name=name,
-        )
-        db.add(merchant)
-        db.flush()
+        derived_merchant_id = f"MER_{hashlib.sha256((user.tenant_id + name).encode()).hexdigest()[:10]}"
+        merchant = db.get(m.Merchant, derived_merchant_id)
+        if merchant is None:
+            merchant = m.Merchant(id=derived_merchant_id, name=name)
+            db.add(merchant)
+            db.flush()
 
     imported_ids: list[str] = []
     skipped = 0

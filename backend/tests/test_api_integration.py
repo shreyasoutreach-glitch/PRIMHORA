@@ -287,7 +287,9 @@ def test_demo_reset_requires_administrator(client):
     assert resp.status_code == 403
 
 
-def test_demo_reset_reseeds_flagship_incident(client):
+def test_demo_reset_reseeds_flagship_incident(client, monkeypatch):
+    from app.api import routes_demo
+    monkeypatch.setattr(routes_demo.settings, "demo_allow_global_reset", True)
     resp = client["client"].post("/api/demo/reset", headers=auth(client["tokens"]["ADMINISTRATOR"]))
     assert resp.status_code == 200
     body = resp.json()
@@ -305,7 +307,9 @@ def test_demo_reset_reseeds_flagship_incident(client):
     assert resp2.json()["headline"]["payout_count"] == 3
 
 
-def test_demo_inject_incident_scenario(client):
+def test_demo_inject_incident_scenario(client, monkeypatch):
+    from app.api import routes_demo
+    monkeypatch.setattr(routes_demo.settings, "demo_allow_global_reset", True)
     # MER_HARBOR (the dedicated Chaos Lab merchant) only exists after a seed/reset.
     reset_resp = client["client"].post("/api/demo/reset", headers=auth(client["tokens"]["ADMINISTRATOR"]))
     admin_token = reset_resp.json()["tokens_by_tenant"]["TEN_NORTHBRIDGE"]["ADMINISTRATOR"]
@@ -319,3 +323,92 @@ def test_demo_inject_incident_scenario(client):
     body = resp.json()
     assert body["incident_evidence_score"] > 0
     assert len(body["payout_ids"]) == 3
+
+
+
+def test_demo_reset_is_disabled_by_default_even_for_demo_admin(client, monkeypatch):
+    from app.api import routes_demo
+    monkeypatch.setattr(routes_demo.settings, "demo_allow_global_reset", False)
+    response = client["client"].post(
+        "/api/demo/reset",
+        headers=auth(client["tokens"]["ADMINISTRATOR"]),
+    )
+    assert response.status_code == 403
+    assert "Global demo reset is disabled" in response.json()["detail"]
+
+
+def test_csv_import_namespaces_same_source_id_by_merchant(client):
+    csv = (
+        b"transaction_id,timestamp,amount,currency,status,beneficiary_name,account_number,ifsc\n"
+        b"SHARED-001,2026-09-30T10:00:00+00:00,15000,INR,processed,Vendor A,XXXX1111,ABCD0001234\n"
+    )
+    ids = []
+    for merchant_name in ("Merchant One", "Merchant Two"):
+        response = client["client"].post(
+            "/api/import/payouts-csv",
+            files={"file": ("payouts.csv", csv, "text/csv")},
+            data={"merchant_name": merchant_name, "source_system": "test", "import_mode": "baseline"},
+            headers=auth(client["tokens"]["INVESTIGATOR"]),
+        )
+        assert response.status_code == 200, response.text
+        ids.extend(response.json()["imported_payout_ids"])
+    assert len(ids) == 2
+    assert ids[0] != ids[1]
+
+
+def test_csv_import_replay_rejects_changed_destination_or_status(client):
+    csv = (
+        b"transaction_id,timestamp,amount,currency,status,beneficiary_name,account_number,ifsc\n"
+        b"PAYLOAD-001,2026-09-30T10:00:00+00:00,15000,INR,processed,Vendor A,XXXX1111,ABCD0001234\n"
+    )
+    first = client["client"].post(
+        "/api/import/payouts-csv",
+        files={"file": ("payouts.csv", csv, "text/csv")},
+        data={"merchant_name": "Replay Integrity Co", "import_mode": "baseline"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert first.status_code == 200, first.text
+
+    changed = csv.replace(b",processed,Vendor A,", b",reversed,Vendor B,")
+    replay = client["client"].post(
+        "/api/import/payouts-csv",
+        files={"file": ("payouts.csv", changed, "text/csv")},
+        data={"merchant_name": "Replay Integrity Co", "import_mode": "baseline"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert replay.status_code == 422
+    assert "conflicts" in replay.json()["detail"]["errors"][0]
+
+
+def test_baseline_import_then_monitor_creates_currency_aware_case(client):
+    baseline_rows = [
+        f"HIST-{i:03d},2026-01-{i + 1:02d}T10:00:00+00:00,{10000 + i * 100},INR,processed,Regular Vendor,XXXX1234,ABCD0001234"
+        for i in range(12)
+    ]
+    header = "transaction_id,timestamp,amount,currency,status,beneficiary_name,account_number,ifsc\n"
+    baseline_csv = (header + "\n".join(baseline_rows) + "\n").encode()
+    baseline = client["client"].post(
+        "/api/import/payouts-csv",
+        files={"file": ("history.csv", baseline_csv, "text/csv")},
+        data={"merchant_name": "Baseline Workflow Co", "import_mode": "baseline"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert baseline.status_code == 200, baseline.text
+    baseline_body = baseline.json()
+    assert baseline_body["imported_rows"] == 12
+    assert baseline_body["incident_count"] == 0
+    assert baseline_body["baseline_observations_by_currency"]["INR"] == 12
+    assert baseline_body["baseline_ready_by_currency"]["INR"] is True
+
+    monitored_csv = (
+        header + "NEW-001,2026-01-13T10:00:00+00:00,5000000,INR,processed,New Recipient,XXXX9876,ABCD0009876\n"
+    ).encode()
+    monitored = client["client"].post(
+        "/api/import/payouts-csv",
+        files={"file": ("current.csv", monitored_csv, "text/csv")},
+        data={"merchant_name": "Baseline Workflow Co", "import_mode": "monitor"},
+        headers=auth(client["tokens"]["INVESTIGATOR"]),
+    )
+    assert monitored.status_code == 200, monitored.text
+    assert monitored.json()["incident_count"] >= 1
+    assert monitored.json()["skipped_for_insufficient_baseline"] == 0
