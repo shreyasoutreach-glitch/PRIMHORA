@@ -69,7 +69,7 @@ DEMO_MODE=true
 VITE_AUTH_REQUIRED=false
 ~~~
 
-Do not use demo mode for real customer data. Demo endpoints can reset or inject synthetic data and are disabled when production mode is enabled.
+Do not use demo mode for real customer data. The shared public demo credential is intentionally non-customer isolation. CSV ingestion and evidence uploads are blocked by default while demo mode is active, and provider webhooks are disabled. Do not set `DEMO_ALLOW_EXTERNAL_INGESTION=true` on a shared deployment. Configure and test OIDC, set `VITE_AUTH_REQUIRED=true` and `DEMO_MODE=false`, then provision each user by immutable provider `sub` before receiving any customer financial records.
 
 ## Security checks
 
