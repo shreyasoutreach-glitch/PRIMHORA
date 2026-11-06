@@ -115,6 +115,12 @@ Attestations are stored as their own records. They can change case interpretatio
 
 This separation is an architectural constraint, not just UI copy.
 
+## CSV import semantics
+
+PRIMHORA supports two explicit read-only import modes. **Historical baseline** imports establish payout behaviour without generating anomaly cases. **Monitor** imports evaluate later records against at least 10 earlier observations in the same currency; records below that minimum are accepted but explicitly left unscored. Baselines are time-bounded to prevent future records from leaking into historical comparisons.
+
+Each imported event records the source filename, SHA-256 fingerprint and row number in its event metadata and audit record. The raw CSV is not retained as a second copy by this import route. The fingerprint supports later file-integrity checks, but does not independently authenticate the file's origin or prove that the supplied ledger came directly from a bank or payment provider.
+
 ## Incident Evidence Score
 
 PRIMHORA currently combines six deterministic signals:

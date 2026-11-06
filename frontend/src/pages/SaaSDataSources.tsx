@@ -15,6 +15,7 @@ export default function SaaSDataSources() {
   const [importError, setImportError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [merchantName, setMerchantName] = useState(() => sessionStorage.getItem("primhora_last_merchant") || "");
+  const [importMode, setImportMode] = useState<"baseline" | "monitor">("baseline");
   const inputRef = useRef<HTMLInputElement>(null);
   const lastImport = sessionStorage.getItem("primhora_last_import_at");
   const connectedSources = Number(sessionStorage.getItem("primhora_connected_sources") || 0);
@@ -41,7 +42,7 @@ export default function SaaSDataSources() {
     setImportError(null);
     setImportResult(null);
     try {
-      const result = await api.importPayoutCsv(file, merchantName.trim());
+      const result = await api.importPayoutCsv(file, merchantName.trim(), importMode);
       setImportResult(result);
       sessionStorage.setItem("primhora_last_merchant", result.merchant_name || merchantName.trim());
       sessionStorage.setItem("primhora_last_import_at", new Date().toISOString());
@@ -166,6 +167,14 @@ export default function SaaSDataSources() {
                 <input value={merchantName} onChange={e => setMerchantName(e.target.value)} placeholder="Northstar Finance" className="mt-2 w-full rounded-xl border border-surface_border bg-graphite px-3 py-3 text-sm focus-ring" />
               </label>
 
+              <label className="block text-xs text-text_primary/45 mt-5">Import purpose
+                <select value={importMode} onChange={e => setImportMode(e.target.value as "baseline" | "monitor")} className="mt-2 w-full rounded-xl border border-surface_border bg-graphite px-3 py-3 text-sm focus-ring">
+                  <option value="baseline">Historical baseline</option>
+                  <option value="monitor">New payout activity</option>
+                </select>
+                <p className="mt-2 text-[11px] leading-relaxed text-text_primary/35">{importMode === "baseline" ? "Use a prior, known-good payout period to establish currency-specific behaviour. This import will not create anomaly cases." : "Use a later period to compare each payout against earlier same-currency history. At least 10 earlier observations are required before a score is produced."}</p>
+              </label>
+
               {importError && <div className="mt-4 rounded-xl border border-vermillion/25 bg-vermillion/[0.04] p-4 text-xs text-vermillion">{importError}</div>}
 
               {importResult && (
@@ -174,15 +183,17 @@ export default function SaaSDataSources() {
                   <div className="grid sm:grid-cols-3 gap-3 mt-4">
                     <Mini label="Imported" value={String(importResult.imported_rows || 0)} />
                     <Mini label="Incidents" value={String(importResult.incident_count || 0)} />
-                    <Mini label="Mode" value="READ-ONLY" />
+                    <Mini label="Mode" value={String(importResult.import_mode || importMode).toUpperCase()} />
                   </div>
+                  {importResult.monitoring_note && <p className="mt-4 text-[11px] leading-relaxed text-text_primary/45">{importResult.monitoring_note}</p>}
+                  {importResult.source_file_sha256 && <p className="mt-3 break-all font-mono text-[10px] text-text_primary/30">Source fingerprint · {importResult.source_file_sha256}</p>}
                   <Link to="/app/incidents" className="inline-flex items-center gap-2 mt-4 text-xs text-text_primary/55 hover:text-text_primary">Open incident queue <ChevronRight size={13} /></Link>
                 </div>
               )}
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button disabled={!file || !preview || !merchantName.trim() || importing || !hasAccessTokenProvider()} onClick={importCsv} className="btn-primary">
-                  {importing ? "Importing…" : "Accept into workspace"}
+                  {importing ? "Importing…" : importMode === "baseline" ? "Establish baseline" : "Monitor this period"}
                 </button>
                 {!hasAccessTokenProvider() && <span className="text-[11px] text-amber/60">Workspace identity must be established first.</span>}
               </div>

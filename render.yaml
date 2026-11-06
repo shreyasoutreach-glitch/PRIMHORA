@@ -11,6 +11,8 @@ services:
         sync: false
       - key: DEMO_MODE
         value: true
+      - key: DEMO_ALLOW_GLOBAL_RESET
+        value: false
       - key: DEMO_BOOTSTRAP_ON_START
         value: false
       - key: SEED

@@ -71,7 +71,7 @@ export default function Welcome() {
               <div className="landing-console-bar">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1.5"><span className="landing-window-dot landing-window-red" /><span className="landing-window-dot landing-window-yellow" /><span className="landing-window-dot landing-window-green" /></div>
-                  <span className="font-label text-[9px] uppercase tracking-[0.18em] text-white/42">Live reconstruction</span>
+                  <span className="font-label text-[9px] uppercase tracking-[0.18em] text-white/42">Synthetic case preview</span>
                 </div>
                 <span className="landing-status">Read-only</span>
               </div>
@@ -97,7 +97,7 @@ export default function Welcome() {
                       <p className="font-label text-[9px] uppercase tracking-[0.18em] text-white/30">Incident graph</p>
                       <p className="mt-1 text-xs text-white/56">Entity correlation + evidence chain</p>
                     </div>
-                    <span className="landing-verified"><CheckCircle2 size={11} /> VERIFIED</span>
+                    <span className="landing-verified"><CheckCircle2 size={11} /> SYNTHETIC</span>
                   </div>
 
                   <div className="relative mt-6 h-[228px] overflow-hidden rounded-xl border border-white/[0.07] bg-[#080811]/80">
