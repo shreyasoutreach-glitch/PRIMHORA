@@ -67,6 +67,12 @@ async def upload_evidence(
     db: Session = Depends(get_tenant_db),
     _user: m.User = Depends(require_permission("INVESTIGATE")),
 ):
+    if settings.demo_mode and not settings.demo_allow_external_ingestion:
+        raise HTTPException(
+            403,
+            "External evidence uploads are disabled while the shared demo identity is active. "
+            "Configure production OIDC and disable DEMO_MODE before accepting customer evidence.",
+        )
     merchant = db.get(m.Merchant, merchant_id)
     if merchant is None:
         raise HTTPException(404, "merchant not found")
