@@ -78,6 +78,7 @@ def test_api_security_headers_are_present():
 def test_http_requests_receive_server_generated_correlation_id(caplog):
     import uuid
 
+    caplog.set_level("INFO", logger="primhora.http")
     client = TestClient(app)
     response = client.get(
         "/",
