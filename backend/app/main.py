@@ -55,6 +55,7 @@ if settings.cors_origin_list:
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["X-Request-ID"],
     )
 
 app.include_router(routes_incident.router, prefix="/api")
