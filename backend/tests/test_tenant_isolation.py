@@ -253,3 +253,67 @@ def test_system_scoped_session_retains_text_sql_access(two_tenants):
         assert db.execute(text("SELECT 1")).scalar_one() == 1
     finally:
         db.close()
+
+
+
+def test_tenant_scoped_orm_select_filters_cross_tenant_rows(two_tenants):
+    from sqlalchemy import select
+
+    SessionLocal = two_tenants["session_factory"]
+    b_payment_id = two_tenants["b"]["payment_id"]
+
+    db = SessionLocal()
+    db.set_tenant(TENANT_A)
+    try:
+        rows = db.execute(select(m.Payment)).scalars().all()
+        assert rows
+        assert all(row.tenant_id == TENANT_A for row in rows)
+        assert db.execute(
+            select(m.Payment).where(m.Payment.id == b_payment_id)
+        ).scalar_one_or_none() is None
+    finally:
+        db.close()
+
+
+def test_tenant_scoped_orm_select_filters_joined_entities(two_tenants):
+    from sqlalchemy import select
+
+    SessionLocal = two_tenants["session_factory"]
+    b_payment_id = two_tenants["b"]["payment_id"]
+
+    db = SessionLocal()
+    db.set_tenant(TENANT_A)
+    try:
+        rows = db.execute(
+            select(m.Payment, m.Merchant).join(
+                m.Merchant, m.Merchant.id == m.Payment.merchant_id
+            )
+        ).all()
+        assert rows
+        assert all(
+            payment.tenant_id == TENANT_A and merchant.tenant_id == TENANT_A
+            for payment, merchant in rows
+        )
+        cross_tenant = db.execute(
+            select(m.Payment, m.Merchant)
+            .join(m.Merchant, m.Merchant.id == m.Payment.merchant_id)
+            .where(m.Payment.id == b_payment_id)
+        ).first()
+        assert cross_tenant is None
+    finally:
+        db.close()
+
+
+def test_system_scoped_orm_select_can_read_across_tenants(two_tenants):
+    from sqlalchemy import select
+
+    SessionLocal = two_tenants["session_factory"]
+    db = SessionLocal()
+    db.set_tenant(None)
+    try:
+        rows = db.execute(select(m.Payment)).scalars().all()
+        tenant_ids = {row.tenant_id for row in rows}
+        assert TENANT_A in tenant_ids
+        assert TENANT_B in tenant_ids
+    finally:
+        db.close()
