@@ -17,7 +17,7 @@ import datetime as dt
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
@@ -231,3 +231,25 @@ def test_financial_event_isolation_at_db_level(two_tenants):
         assert all(e.tenant_id == TENANT_A for e in events)
     finally:
         db_scoped_to_a.close()
+
+
+
+def test_tenant_scoped_session_rejects_raw_text_sql(two_tenants):
+    SessionLocal = two_tenants["session_factory"]
+    db = SessionLocal()
+    db.set_tenant(TENANT_A)
+    try:
+        with pytest.raises(PermissionError, match="Textual SQL is prohibited"):
+            db.execute(text("SELECT 1"))
+    finally:
+        db.close()
+
+
+def test_system_scoped_session_retains_text_sql_access(two_tenants):
+    SessionLocal = two_tenants["session_factory"]
+    db = SessionLocal()
+    db.set_tenant(None)
+    try:
+        assert db.execute(text("SELECT 1")).scalar_one() == 1
+    finally:
+        db.close()

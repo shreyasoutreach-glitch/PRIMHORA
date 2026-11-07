@@ -48,6 +48,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import TextClause
 
 
 class TenantScopedSession(Session):
@@ -61,6 +62,21 @@ class TenantScopedSession(Session):
 
     def set_tenant(self, tenant_id: str | None) -> None:
         self._tenant_id = tenant_id
+
+    def execute(self, statement, *args, **kwargs):
+        """Reject textual SQL while a tenant scope is active.
+
+        ORM query() and get() are tenant-filtered below. Session.execute(text(...))
+        is not, so allowing it would silently bypass the isolation boundary.
+        System-scoped sessions (tenant_id=None) retain their existing behavior.
+        For tenant-scoped work, use ORM statements that preserve entity scoping.
+        """
+        if self._tenant_id is not None and isinstance(statement, TextClause):
+            raise PermissionError(
+                "Textual SQL is prohibited in tenant-scoped sessions; "
+                "use tenant-scoped ORM queries."
+            )
+        return super().execute(statement, *args, **kwargs)
 
     @property
     def current_tenant_id(self) -> str | None:

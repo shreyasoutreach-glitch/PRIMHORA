@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,6 +24,7 @@ from app.core.config import get_settings
 
 
 settings = get_settings()
+logger = logging.getLogger("primhora.http")
 
 if not settings.demo_mode:
     if not settings.oidc_issuer or not settings.auth_provider_audience or not settings.oidc_jwks_url:
@@ -51,6 +55,7 @@ if settings.cors_origin_list:
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["X-Request-ID"],
     )
 
 app.include_router(routes_incident.router, prefix="/api")
@@ -70,7 +75,36 @@ def _health_payload(db_ok: bool = True) -> dict:
 
 @app.middleware("http")
 async def security_headers(request, call_next):
-    response = await call_next(request)
+    # Generate the correlation ID server-side. Never trust a caller-supplied
+    # value as a log key, and never log query strings or request bodies.
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.error(
+            "http_request_failed",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "error_type": type(exc).__name__,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        raise
+    logger.info(
+        "http_request",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+        },
+    )
+    response.headers["X-Request-ID"] = request_id
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

@@ -73,3 +73,28 @@ def test_api_security_headers_are_present():
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+def test_http_requests_receive_server_generated_correlation_id(caplog):
+    import uuid
+
+    caplog.set_level("INFO", logger="primhora.http")
+    client = TestClient(app)
+    response = client.get(
+        "/",
+        headers={"X-Request-ID": "caller-controlled-value"},
+    )
+
+    assert response.status_code == 200
+    request_id = response.headers["x-request-id"]
+    assert str(uuid.UUID(request_id)) == request_id
+    assert request_id != "caller-controlled-value"
+    matching = [
+        record for record in caplog.records
+        if getattr(record, "request_id", None) == request_id
+    ]
+    assert matching
+    assert matching[-1].path == "/"
+    assert matching[-1].method == "GET"
+    assert matching[-1].status_code == 200
+    assert not hasattr(matching[-1], "query_string")
