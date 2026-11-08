@@ -32,7 +32,7 @@ def upgrade() -> None:
                 IF EXISTS (
                     SELECT 1 FROM pg_catalog.pg_roles
                     WHERE rolname = 'primhora_runtime'
-                      AND (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole)
+                      AND (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole OR rolcanlogin OR rolinherit)
                 ) THEN
                     RAISE EXCEPTION
                         'Existing primhora_runtime role has unsafe elevated attributes';
