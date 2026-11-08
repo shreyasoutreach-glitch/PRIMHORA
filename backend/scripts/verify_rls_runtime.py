@@ -101,10 +101,10 @@ def main() -> None:
                       AND c.table_name <> 'users'
                       AND t.table_type = 'BASE TABLE'
                       AND (
-                        NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'SELECT')
-                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'INSERT')
-                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'UPDATE')
-                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'DELETE')
+                        NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'SELECT')
+                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'INSERT')
+                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'UPDATE')
+                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'DELETE')
                       )
                     """
                 )
