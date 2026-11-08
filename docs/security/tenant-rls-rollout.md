@@ -159,13 +159,17 @@ Many foreign keys currently reference only the child ID, not the pair (tenant_id
 10. Migration role can migrate; runtime role cannot perform DDL or alter policies.
 11. Production demo/reset/provisioning routes remain correctly disabled or are implemented through a narrow authorized mechanism.
 
+## Composite foreign-key integrity
+
+The implementation branch adds migration `f3a8d1c6e9b2_tenant_composite_foreign_keys.py`. It replaces 21 ID-only foreign keys between tenant-owned tables with composite `(tenant_id, referenced_id)` foreign keys, backed by `(tenant_id, id)` unique constraints on parent tables. A read-only live audit on 2026-11-08 found zero cross-tenant mismatches across all 21 relationships. The migration repeats this preflight and aborts atomically if any mismatch exists. Docker CI verifies that a Tenant A row cannot reference a Tenant B merchant. The migration is not applied to production.
+
 ## Rollback
 
 Rollback must restore the previous application credential and application release only after confirming the prior credential remains valid and has been rotated/controlled. Disabling RLS as a quick rollback is not acceptable. Keep migration scripts reversible where possible, but never drop role/policy objects automatically without reviewing dependencies.
 
 ## Explicit non-goals
 
-- No live database changes in this ADR.
+- No live database changes in this ADR or its implementation branch.
 - No credentials or secrets in source control.
 - No generic privileged system GUC.
 - No claim that RLS alone prevents SQL injection.
