@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # it and fall back to DATABASE_URL.
     migration_database_url: str | None = None
 
-    demo_mode: bool = True
+    demo_mode: bool = False
     demo_bootstrap_on_start: bool = False
     demo_allow_global_reset: bool = False
     demo_allow_external_ingestion: bool = False
