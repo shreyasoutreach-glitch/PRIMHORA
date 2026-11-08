@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import sys
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import DBAPIError
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -281,6 +281,31 @@ def main() -> None:
                 for row in connection.execute(text("SELECT id FROM public.users")).all()
             }
             assert demo_users == {"RLS_U_A"}
+
+            # Exercise the real application Session hook, not just raw
+            # set_config calls. This verifies the after_begin listener applies
+            # context and reapplies it after a commit/new transaction.
+            from app.core.tenancy import TenantScopedSession
+            from app.models.entities import Merchant
+
+            session = TenantScopedSession(
+                bind=connection,
+                join_transaction_mode="create_savepoint",
+            )
+            session.set_tenant("RLS_CI_A")
+            orm_a = session.execute(select(Merchant)).scalars().all()
+            assert {merchant.id for merchant in orm_a} == {"RLS_M_A"}
+            assert session.get(Merchant, "RLS_M_B") is None
+            session.commit()
+
+            # The same session starts another transaction; its context must be
+            # re-applied by after_begin rather than relying on pooled state.
+            orm_a_again = session.execute(select(Merchant)).scalars().all()
+            assert {merchant.id for merchant in orm_a_again} == {"RLS_M_A"}
+            session.set_tenant("RLS_CI_B")
+            orm_b = session.execute(select(Merchant)).scalars().all()
+            assert {merchant.id for merchant in orm_b} == {"RLS_M_B"}
+            session.close()
 
             # Runtime role must not read or mutate Alembic's migration ledger.
             can_read_migrations = connection.execute(
