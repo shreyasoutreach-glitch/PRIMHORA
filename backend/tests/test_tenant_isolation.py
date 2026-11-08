@@ -317,3 +317,54 @@ def test_system_scoped_orm_select_can_read_across_tenants(two_tenants):
         assert TENANT_B in tenant_ids
     finally:
         db.close()
+
+
+def test_risk_engine_models_with_tenant_id_are_filtered(two_tenants):
+    """Risk models do not inherit TenantScoped, but still carry tenant_id."""
+    from sqlalchemy import select
+    from app.models.risk import RiskEventModel
+
+    SessionLocal = two_tenants["session_factory"]
+    db = SessionLocal()
+    try:
+        db.set_tenant(TENANT_A)
+        db.add(
+            RiskEventModel(
+                event_id="RISK_A",
+                tenant_id=TENANT_A,
+                entity_id="ENTITY_A",
+                event_type="PAYMENT",
+                event_time=dt.datetime(2026, 4, 1),
+                source="test",
+                source_event_id="SRC_A",
+                payload={"tenant": "A"},
+                payload_hash="hash-a",
+                previous_event_hash="",
+            )
+        )
+        db.commit()
+
+        db.set_tenant(TENANT_B)
+        db.add(
+            RiskEventModel(
+                event_id="RISK_B",
+                tenant_id=TENANT_B,
+                entity_id="ENTITY_B",
+                event_type="PAYMENT",
+                event_time=dt.datetime(2026, 4, 1),
+                source="test",
+                source_event_id="SRC_B",
+                payload={"tenant": "B"},
+                payload_hash="hash-b",
+                previous_event_hash="",
+            )
+        )
+        db.commit()
+
+        db.set_tenant(TENANT_A)
+        rows = db.execute(select(RiskEventModel)).scalars().all()
+        assert {row.event_id for row in rows} == {"RISK_A"}
+        assert db.get(RiskEventModel, "RISK_B") is None
+        assert {row.event_id for row in db.query(RiskEventModel).all()} == {"RISK_A"}
+    finally:
+        db.close()
