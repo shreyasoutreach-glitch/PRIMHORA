@@ -53,15 +53,17 @@ def main() -> None:
                 text(
                     """
                     WITH tenant_tables AS (
-                        SELECT DISTINCT c.table_name
-                        FROM information_schema.columns c
-                        JOIN information_schema.tables t
-                          ON t.table_schema = c.table_schema
-                         AND t.table_name = c.table_name
-                        WHERE c.table_schema = 'public'
-                          AND c.column_name = 'tenant_id'
-                          AND t.table_type = 'BASE TABLE'
-                          AND c.table_name <> 'users'
+                        SELECT DISTINCT c.oid, c.relname AS table_name,
+                               c.relrowsecurity, c.relowner
+                        FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        JOIN pg_attribute a ON a.attrelid = c.oid
+                        WHERE n.nspname = 'public'
+                          AND c.relkind IN ('r', 'p')
+                          AND a.attname = 'tenant_id'
+                          AND a.attnum > 0
+                          AND NOT a.attisdropped
+                          AND c.relname <> 'users'
                     ),
                     secured AS (
                         SELECT tablename
@@ -73,15 +75,9 @@ def main() -> None:
                         (SELECT count(*) FROM tenant_tables) AS tenant_table_count,
                         (SELECT count(*) FROM tenant_tables tt
                          JOIN secured s ON s.tablename = tt.table_name) AS policy_count,
-                        (SELECT count(*) FROM tenant_tables tt
-                         JOIN pg_class c ON c.relname = tt.table_name
-                         JOIN pg_namespace n ON n.oid = c.relnamespace
-                         WHERE n.nspname = 'public' AND c.relrowsecurity) AS rls_count,
-                        (SELECT count(*) FROM tenant_tables tt
-                         JOIN pg_class c ON c.relname = tt.table_name
-                         JOIN pg_namespace n ON n.oid = c.relnamespace
-                         WHERE n.nspname = 'public'
-                           AND pg_get_userbyid(c.relowner) = current_user) AS owned_count
+                        (SELECT count(*) FROM tenant_tables WHERE relrowsecurity) AS rls_count,
+                        (SELECT count(*) FROM tenant_tables
+                         WHERE pg_get_userbyid(relowner) = current_user) AS owned_count
                     """
                 )
             ).mappings().one()
@@ -92,19 +88,20 @@ def main() -> None:
                 text(
                     """
                     SELECT count(*)
-                    FROM information_schema.columns c
-                    JOIN information_schema.tables t
-                      ON t.table_schema = c.table_schema
-                     AND t.table_name = c.table_name
-                    WHERE c.table_schema = 'public'
-                      AND c.column_name = 'tenant_id'
-                      AND c.table_name <> 'users'
-                      AND t.table_type = 'BASE TABLE'
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    JOIN pg_attribute a ON a.attrelid = c.oid
+                    WHERE n.nspname = 'public'
+                      AND c.relkind IN ('r', 'p')
+                      AND a.attname = 'tenant_id'
+                      AND a.attnum > 0
+                      AND NOT a.attisdropped
+                      AND c.relname <> 'users'
                       AND (
-                        NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'SELECT')
-                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'INSERT')
-                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'UPDATE')
-                        OR NOT has_table_privilege('primhora_runtime', 'public.' || quote_ident(c.table_name), 'DELETE')
+                        NOT has_table_privilege('primhora_runtime', c.oid, 'SELECT')
+                        OR NOT has_table_privilege('primhora_runtime', c.oid, 'INSERT')
+                        OR NOT has_table_privilege('primhora_runtime', c.oid, 'UPDATE')
+                        OR NOT has_table_privilege('primhora_runtime', c.oid, 'DELETE')
                       )
                     """
                 )
