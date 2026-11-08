@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.authz import get_system_db, require_permission
@@ -24,6 +25,9 @@ def demo_session(role: str = "ADMINISTRATOR", db: Session = Depends(get_db)):
     role = role.upper()
     if role not in allowed:
         raise HTTPException(400, "Unsupported demo role")
+    # The token predicate is supplied to RLS only for this exact lookup.
+    db.set_tenant(None)
+    db.set_demo_token("")  # no caller token exists on this public demo-session route
     user = db.query(User).filter(User.tenant_id == "TEN_NORTHBRIDGE", User.role == role).first()
     token = user.api_token if user is not None else (settings.demo_master_token if role == "ADMINISTRATOR" else "")
     if not token:
@@ -60,6 +64,24 @@ def demo_reset(
         raise HTTPException(403, "DEMO_MODE is disabled")
     if not settings.demo_allow_global_reset:
         raise HTTPException(403, "Global demo reset is disabled for this deployment.")
+
+    # A tenant-scoped runtime role must never be able to wipe every tenant.
+    # Keep this exceptional operation available only to an explicitly enabled
+    # isolated demo deployment whose DB credential itself has BYPASSRLS.
+    if db.get_bind().dialect.name == "postgresql":
+        role_is_bypass = db.connection().execute(
+            text(
+                "SELECT rolbypassrls FROM pg_roles "
+                "WHERE rolname = current_user"
+            )
+        ).scalar_one()
+        if not role_is_bypass:
+            raise HTTPException(
+                503,
+                "Global demo reset requires an isolated privileged database credential.",
+            )
+    db.set_tenant(None)
+
     from seed.seed import run_seed
 
     result = run_seed(db, seed_value=settings.seed)
