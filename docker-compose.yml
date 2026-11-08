@@ -20,6 +20,9 @@ services:
       DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-primhora}:${POSTGRES_PASSWORD:-change_me_locally}@postgres:5432/${POSTGRES_DB:-primhora}
       DEMO_MODE: ${DEMO_MODE:-true}
       DEMO_BOOTSTRAP_ON_START: ${DEMO_BOOTSTRAP_ON_START:-true}
+      # Compose uses a private local Postgres container, so the deterministic
+      # global demo seed is allowed here only. Render keeps this false.
+      DEMO_ALLOW_GLOBAL_RESET: ${DEMO_ALLOW_GLOBAL_RESET:-true}
       SEED: ${SEED:-42}
       EVIDENCE_STORAGE_DIR: /app/storage/evidence
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
