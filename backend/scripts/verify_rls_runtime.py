@@ -75,6 +75,28 @@ def main() -> None:
             assert policy_check["tenant_table_count"] == policy_check["policy_count"]
             assert policy_check["tenant_table_count"] == policy_check["rls_count"]
             assert policy_check["owned_count"] == 0
+            privilege_failures = connection.execute(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM information_schema.columns c
+                    JOIN information_schema.tables t
+                      ON t.table_schema = c.table_schema
+                     AND t.table_name = c.table_name
+                    WHERE c.table_schema = 'public'
+                      AND c.column_name = 'tenant_id'
+                      AND c.table_name <> 'users'
+                      AND t.table_type = 'BASE TABLE'
+                      AND (
+                        NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'SELECT')
+                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'INSERT')
+                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'UPDATE')
+                        OR NOT has_table_privilege('primhora_runtime', format('public.%I', c.table_name), 'DELETE')
+                      )
+                    """
+                )
+            ).scalar_one()
+            assert privilege_failures == 0
             special_policy_count = connection.execute(
                 text(
                     "SELECT count(*) FROM pg_policies "
@@ -94,6 +116,20 @@ def main() -> None:
             )
             assert connection.execute(text("SELECT count(*) FROM public.tenants")).scalar_one() == 0
             assert connection.execute(text("SELECT count(*) FROM public.merchants")).scalar_one() == 0
+
+            no_context_savepoint = connection.begin_nested()
+            try:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.tenants (id, name, created_at) "
+                        "VALUES ('RLS_NO_CONTEXT', 'Must be rejected', now())"
+                    )
+                )
+            except DBAPIError:
+                no_context_savepoint.rollback()
+            else:
+                no_context_savepoint.rollback()
+                raise AssertionError("RLS allowed a tenant insert without tenant context")
 
             # Tenant A may create and read only rows whose tenant_id is A.
             connection.execute(text("SELECT set_config('app.tenant_id', 'RLS_CI_A', true)"))
@@ -155,6 +191,27 @@ def main() -> None:
             }
             assert tenant_ids == {"RLS_CI_A"}
             assert merchant_ids == {"RLS_M_A"}
+            assert connection.execute(
+                text("UPDATE public.merchants SET name = 'leak' WHERE id = 'RLS_M_B'")
+            ).rowcount == 0
+            assert connection.execute(
+                text("DELETE FROM public.merchants WHERE id = 'RLS_M_B'")
+            ).rowcount == 0
+
+            cross_tenant_savepoint = connection.begin_nested()
+            try:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.merchants "
+                        "(id, tenant_id, name, category, created_at, is_flagship) "
+                        "VALUES ('RLS_M_LEAK', 'RLS_CI_B', 'Must be rejected', 'test', now(), false)"
+                    )
+                )
+            except DBAPIError:
+                cross_tenant_savepoint.rollback()
+            else:
+                cross_tenant_savepoint.rollback()
+                raise AssertionError("RLS allowed inserting a row for another tenant")
 
             # A verified OIDC subject can resolve exactly its provisioned user
             # before tenant context exists, then no other user.
@@ -181,7 +238,7 @@ def main() -> None:
             ).scalar_one()
             assert can_read_migrations is False
 
-            print("RLS runtime verification passed: role, default deny, tenant CRUD visibility, OIDC/demo bootstrap, migration-ledger denial.")
+            print("RLS runtime verification passed: role, default deny, tenant CRUD isolation, OIDC/demo bootstrap, least-privilege grants, migration-ledger denial.")
         except Exception:
             transaction.rollback()
             raise
