@@ -226,6 +226,43 @@ def main() -> None:
                 cross_tenant_savepoint.rollback()
                 raise AssertionError("RLS allowed inserting a row for another tenant")
 
+            # A valid same-tenant relationship is accepted.
+            connection.execute(
+                text(
+                    "INSERT INTO public.contacts "
+                    "(id, tenant_id, merchant_id, name, type, phone, email, upi_id, created_at) "
+                    "VALUES ('RLS_C_A', 'RLS_CI_A', 'RLS_M_A', 'Contact A', "
+                    "'vendor', '', 'a-contact@rls.test', '', now())"
+                )
+            )
+
+            # A tenant-A child row cannot point at a tenant-B merchant, even
+            # though the ID-only FK would previously have accepted it.
+            composite_fk_savepoint = connection.begin_nested()
+            try:
+                connection.execute(
+                    text(
+                        "INSERT INTO public.contacts "
+                        "(id, tenant_id, merchant_id, name, type, phone, email, upi_id, created_at) "
+                        "VALUES ('RLS_C_LEAK', 'RLS_CI_A', 'RLS_M_B', 'Cross Tenant', "
+                        "'vendor', '', 'leak@rls.test', '', now())"
+                    )
+                )
+            except DBAPIError:
+                composite_fk_savepoint.rollback()
+            else:
+                composite_fk_savepoint.rollback()
+                raise AssertionError("Composite tenant foreign key allowed a cross-tenant reference")
+
+            composite_fk_count = connection.execute(
+                text(
+                    "SELECT count(*) FROM pg_constraint "
+                    "WHERE connamespace = 'public'::regnamespace "
+                    "AND contype = 'f' AND conname LIKE 'fk_%_tenant_%'"
+                )
+            ).scalar_one()
+            assert composite_fk_count == 21
+
             # A verified OIDC subject can resolve exactly its provisioned user
             # before tenant context exists, then no other user.
             connection.execute(text("SELECT set_config('app.tenant_id', '', true)"))
@@ -251,7 +288,7 @@ def main() -> None:
             ).scalar_one()
             assert can_read_migrations is False
 
-            print("RLS runtime verification passed: role, default deny, tenant CRUD isolation, OIDC/demo bootstrap, least-privilege grants, migration-ledger denial.")
+            print("RLS verification passed: restricted inherited role, default deny, tenant CRUD isolation, composite-FK enforcement, OIDC/demo bootstrap, least-privilege grants, migration-ledger denial.")
         except Exception:
             transaction.rollback()
             raise
