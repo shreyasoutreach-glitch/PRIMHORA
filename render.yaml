@@ -42,6 +42,8 @@ services:
         sync: false
       - key: RAZORPAY_MERCHANT_ID
         sync: false
+      - key: RAZORPAY_TENANT_ID
+        sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
       - key: RAZORPAY_MODE
