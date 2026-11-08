@@ -5,11 +5,17 @@ production lives here, read once from the environment.
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Required in every environment. Production uses Supabase PostgreSQL.
+    # Runtime application credential. Production must use a non-owner,
+    # NOBYPASSRLS role once the staged RLS rollout is activated.
     database_url: str
+
+    # Separate DDL-capable credential used only by Alembic at release/startup.
+    # Local development may omit it and fall back to DATABASE_URL.
+    migration_database_url: str | None = None
 
     demo_mode: bool = True
     demo_bootstrap_on_start: bool = False
@@ -55,6 +61,7 @@ class Settings(BaseSettings):
         if self.auth_provider_domain:
             return f"https://{self.auth_provider_domain.rstrip('/')}/.well-known/jwks.json"
         return ""
+
 
 @lru_cache
 def get_settings() -> Settings:
