@@ -24,16 +24,28 @@ def main() -> None:
     with engine.connect() as connection:
         transaction = connection.begin()
         try:
-            connection.execute(text("SET ROLE primhora_runtime"))
+            # Simulate the production login role inheriting the NOLOGIN group.
+            # The whole script transaction is rolled back, so this test role
+            # never persists in the CI database.
+            connection.execute(
+                text(
+                    "CREATE ROLE primhora_app_ci NOLOGIN INHERIT "
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS"
+                )
+            )
+            connection.execute(text("GRANT primhora_runtime TO primhora_app_ci"))
+            connection.execute(text("SET ROLE primhora_app_ci"))
             role = connection.execute(
                 text(
-                    "SELECT current_user, rolsuper, rolbypassrls "
+                    "SELECT current_user, rolsuper, rolbypassrls, "
+                    "pg_has_role(current_user, 'primhora_runtime', 'member') AS runtime_member "
                     "FROM pg_roles WHERE rolname = current_user"
                 )
             ).mappings().one()
-            assert role["current_user"] == "primhora_runtime"
+            assert role["current_user"] == "primhora_app_ci"
             assert role["rolsuper"] is False
             assert role["rolbypassrls"] is False
+            assert role["runtime_member"] is True
 
             # The role must not own tenant tables and every tenant-keyed
             # public table must have RLS enabled plus the expected policy.
