@@ -8,8 +8,12 @@ for CI/local Postgres, not the live production database.
 """
 from __future__ import annotations
 
+import os
+import sys
+
 from sqlalchemy import create_engine, text
-from sqlalchemy.exc import DBAPIError
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import get_settings
 
