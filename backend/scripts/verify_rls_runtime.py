@@ -44,6 +44,7 @@ def main() -> None:
                         WHERE c.table_schema = 'public'
                           AND c.column_name = 'tenant_id'
                           AND t.table_type = 'BASE TABLE'
+                          AND c.table_name <> 'users'
                     ),
                     secured AS (
                         SELECT tablename
@@ -70,6 +71,15 @@ def main() -> None:
             assert policy_check["tenant_table_count"] == policy_check["policy_count"]
             assert policy_check["tenant_table_count"] == policy_check["rls_count"]
             assert policy_check["owned_count"] == 0
+            special_policy_count = connection.execute(
+                text(
+                    "SELECT count(*) FROM pg_policies "
+                    "WHERE schemaname = 'public' AND policyname IN "
+                    "('primhora_tenant_isolation', 'primhora_user_tenant_write', "
+                    "'primhora_user_identity_bootstrap')"
+                )
+            ).scalar_one()
+            assert special_policy_count == policy_check["tenant_table_count"] + 3
 
             connection.execute(
                 text(
