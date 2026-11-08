@@ -16,6 +16,12 @@ class MockDB:
     def set_tenant(self, tenant):
         pass
 
+    def set_oidc_subject(self, subject):
+        self.oidc_subject = subject
+
+    def set_demo_token(self, token):
+        self.demo_token = token
+
     def query(self, model):
         return self
 

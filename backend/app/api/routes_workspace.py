@@ -51,6 +51,10 @@ def create_workspace(
         )
 
     tenant_id = _new_id("TEN")
+    # Tenant creation is intentionally scoped to the new tenant ID. The
+    # database policy permits inserting only the tenant whose ID is present
+    # in the transaction-local context, then the same scope stamps its owner.
+    db.set_tenant(tenant_id)
     tenant = m.Tenant(id=tenant_id, name=body.name)
     db.add(tenant)
     db.flush()

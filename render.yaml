@@ -3,14 +3,17 @@ services:
     name: primhora-api
     env: python
     buildCommand: "cd backend && pip install -r requirements.txt"
+    # Alembic uses MIGRATION_DATABASE_URL; the API process uses DATABASE_URL.
+    # Configure both as secrets in Render before activating the restricted role.
     startCommand: "cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
-      # Supabase PostgreSQL Session Pooler connection string. Set as a secret in Render.
       - key: DATABASE_URL
         sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
       - key: DEMO_MODE
-        value: true
+        value: false
       - key: DEMO_ALLOW_GLOBAL_RESET
         value: false
       - key: DEMO_ALLOW_EXTERNAL_INGESTION
@@ -38,6 +41,8 @@ services:
       - key: RAZORPAY_ACCOUNT_NUMBER
         sync: false
       - key: RAZORPAY_MERCHANT_ID
+        sync: false
+      - key: RAZORPAY_TENANT_ID
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false

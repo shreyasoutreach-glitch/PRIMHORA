@@ -5,19 +5,20 @@ production lives here, read once from the environment.
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    # Required in every environment. Production uses Supabase PostgreSQL.
+    # Runtime application credential. Production must use a non-owner,
+    # NOBYPASSRLS role once the staged RLS rollout is activated.
     database_url: str
+    # DDL-capable credential used only by Alembic. Local development may omit
+    # it and fall back to DATABASE_URL.
+    migration_database_url: str | None = None
 
-    demo_mode: bool = True
+    demo_mode: bool = False
     demo_bootstrap_on_start: bool = False
-    # Global reset destroys every tenant in the demo database. Keep disabled
-    # on shared deployments; enable only on an isolated development instance.
     demo_allow_global_reset: bool = False
-    # Shared public demo credentials must never accept third-party financial data.
-    # Enable only on an isolated, access-controlled development environment.
     demo_allow_external_ingestion: bool = False
     demo_master_token: str = ""
     seed: int = 42
@@ -34,6 +35,7 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_account_number: str = ""
     razorpay_merchant_id: str = ""
+    razorpay_tenant_id: str = ""
     razorpay_webhook_secret: str = ""
 
     @property
@@ -55,6 +57,7 @@ class Settings(BaseSettings):
         if self.auth_provider_domain:
             return f"https://{self.auth_provider_domain.rstrip('/')}/.well-known/jwks.json"
         return ""
+
 
 @lru_cache
 def get_settings() -> Settings:

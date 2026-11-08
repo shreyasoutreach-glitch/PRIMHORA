@@ -1,13 +1,13 @@
 # ADR: Safe PostgreSQL tenant-RLS rollout
 
-**Status:** Proposed. Documentation only; no production SQL or credentials changed.
+**Status:** Implementation prepared on `security/postgres-rls-runtime-role`; not merged or deployed. No production SQL or credentials changed.
 **Scope:** PRIMHORA's Supabase PostgreSQL database and Render API runtime.
 
 ## Executive decision
 
 Do not add tenant policies to the live database until the application runtime is moved off a privileged database role and the identity bootstrap path is redesigned. The current database has RLS enabled on 27 public tables, but zero policies. The existing application depends on global user lookup and system-scoped sessions. A policy-only migration would either break authentication/operations or tempt us to add a broad bypass.
 
-The target is:
+The implementation branch now contains a staged first cut: a NOLOGIN `primhora_runtime` group role, tenant policies, transaction-local context wiring, and a PostgreSQL role-level verification script. A separate LOGIN role and production credential switch remain activation steps. The target is:
 
 1. A dedicated app_runtime login role that is not a table owner, is not a member of a privileged role, and has neither SUPERUSER nor BYPASSRLS.
 2. A separate migration credential/role with schema-owner privileges. Runtime startup must not run Alembic using the application credential.
@@ -89,7 +89,7 @@ The SQLAlchemy implementation must handle the fact that FastAPI dependencies may
 | users | Normal access limited to tenant_id = app.tenant_id; bootstrap lookup may additionally select only the row whose idp_subject equals verified app.oidc_subject |
 | alembic_version | No runtime grant; migration role only |
 
-Enable and FORCE RLS on tenant-owned tables after the role and policy tests are ready. Keep the runtime role distinct from the owner because FORCE RLS does not make a superuser or BYPASSRLS role subject to policies.
+Enable RLS on tenant-owned tables after role and policy tests are ready. `primhora_app` must be neither table owner nor BYPASSRLS. FORCE RLS is intentionally omitted so local owner-based development seeding continues to work; this does not weaken RLS for the separate non-owner production runtime role.
 
 Use explicit policies per command (SELECT, INSERT, UPDATE, DELETE) or a carefully reviewed combined policy. Verify every policy's USING and WITH CHECK semantics. Do not use a permissive true policy for system access.
 
@@ -159,13 +159,17 @@ Many foreign keys currently reference only the child ID, not the pair (tenant_id
 10. Migration role can migrate; runtime role cannot perform DDL or alter policies.
 11. Production demo/reset/provisioning routes remain correctly disabled or are implemented through a narrow authorized mechanism.
 
+## Composite foreign-key integrity
+
+The implementation branch adds migration `f3a8d1c6e9b2_tenant_composite_foreign_keys.py`. It replaces 21 ID-only foreign keys between tenant-owned tables with composite `(tenant_id, referenced_id)` foreign keys, backed by `(tenant_id, id)` unique constraints on parent tables. A read-only live audit on 2026-11-08 found zero cross-tenant mismatches across all 21 relationships. The migration repeats this preflight and aborts atomically if any mismatch exists. Docker CI verifies that a Tenant A row cannot reference a Tenant B merchant. The migration is not applied to production.
+
 ## Rollback
 
 Rollback must restore the previous application credential and application release only after confirming the prior credential remains valid and has been rotated/controlled. Disabling RLS as a quick rollback is not acceptable. Keep migration scripts reversible where possible, but never drop role/policy objects automatically without reviewing dependencies.
 
 ## Explicit non-goals
 
-- No live database changes in this ADR.
+- No live database changes in this ADR or its implementation branch.
 - No credentials or secrets in source control.
 - No generic privileged system GUC.
 - No claim that RLS alone prevents SQL injection.

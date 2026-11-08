@@ -14,14 +14,16 @@ from app.core.config import get_settings
 from app.models import Base
 
 config = context.config
-
 settings = get_settings()
-database_url = settings.database_url
+
+# DDL runs with a dedicated migration credential in production. For local
+# development, MIGRATION_DATABASE_URL may safely fall back to DATABASE_URL.
+database_url = settings.migration_database_url or settings.database_url
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
 elif database_url.startswith("postgresql://"):
     database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -50,9 +52,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

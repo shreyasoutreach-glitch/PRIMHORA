@@ -58,5 +58,7 @@ jobs:
           done
           docker compose logs
           exit 1
+      - name: Verify PostgreSQL RLS under restricted runtime role
+        run: docker compose exec -T backend python scripts/verify_rls_runtime.py
       - if: always()
         run: docker compose down -v
