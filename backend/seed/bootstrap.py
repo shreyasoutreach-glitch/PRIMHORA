@@ -1,10 +1,11 @@
-"""Bootstrap deterministic demo data only when DEMO_MODE is enabled and the
-expected seeded administrator is absent.
+"""Bootstrap deterministic demo data only on an isolated privileged demo DB.
 
-This is intentionally idempotent for the shipped demo: it only resets/reseeds
-when the deterministic SEED=42 administrator token is missing. Production
-deployments must set DEMO_MODE=false and therefore skip this bootstrap.
+The seed path intentionally rebuilds the whole demo universe. It must never
+run under the restricted production runtime role, which is tenant-scoped and
+has no BYPASSRLS or TRUNCATE privilege.
 """
+from sqlalchemy import text
+
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.models import entities as m
@@ -16,9 +17,23 @@ def main() -> None:
     if not settings.demo_mode:
         print("Demo bootstrap skipped: DEMO_MODE=false")
         return
+    if not settings.demo_allow_global_reset:
+        raise RuntimeError(
+            "Demo bootstrap requires DEMO_ALLOW_GLOBAL_RESET=true on an isolated demo database."
+        )
 
     db = SessionLocal()
     try:
+        if db.get_bind().dialect.name == "postgresql":
+            role_is_bypass = db.connection().execute(
+                text("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            ).scalar_one()
+            if not role_is_bypass:
+                raise RuntimeError(
+                    "Demo bootstrap requires a privileged isolated database role; "
+                    "the restricted runtime role cannot reset all tenants."
+                )
+
         db.set_tenant(None)
         expected_admin_token = "3e7d80fdfed273606f4c76ff8b24f98b098d2f129a31e399"
         admin_exists = db.query(m.User).filter(m.User.api_token == expected_admin_token).first()
