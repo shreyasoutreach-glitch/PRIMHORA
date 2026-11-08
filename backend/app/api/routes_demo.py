@@ -12,7 +12,6 @@ from app.models.entities import Merchant, User
 from app.schemas.schemas import DemoResetResponse, InjectIncidentRequest, InjectIncidentResponse
 
 router = APIRouter(tags=["demo"])
-
 settings = get_settings()
 
 
@@ -25,19 +24,14 @@ def demo_session(role: str = "ADMINISTRATOR", db: Session = Depends(get_db)):
     role = role.upper()
     if role not in allowed:
         raise HTTPException(400, "Unsupported demo role")
-    # The token predicate is supplied to RLS only for this exact lookup.
-    db.set_tenant(None)
-    db.set_demo_token("")  # no caller token exists on this public demo-session route
-    user = db.query(User).filter(User.tenant_id == "TEN_NORTHBRIDGE", User.role == role).first()
+    # The public demo selector is intentionally pinned to the single seeded
+    # demo tenant. It does not need or receive global database visibility.
+    db.set_tenant("TEN_NORTHBRIDGE")
+    user = db.query(User).filter(User.role == role).first()
     token = user.api_token if user is not None else (settings.demo_master_token if role == "ADMINISTRATOR" else "")
     if not token:
         raise HTTPException(503, "Demo identity is unavailable. Reset the demo dataset.")
     return {"mode": "DEMO", "role": role, "tenant_id": "TEN_NORTHBRIDGE", "token": token, "simulated": True}
-
-
-# These endpoints are destructive (reset wipes and reseeds the ENTIRE
-# database, across every tenant) and are gated two ways: DEMO_MODE must be
-# on, AND the caller must authenticate as an ADMINISTRATOR.
 
 
 @router.post("/demo/inject-incident", response_model=InjectIncidentResponse)
@@ -65,15 +59,10 @@ def demo_reset(
     if not settings.demo_allow_global_reset:
         raise HTTPException(403, "Global demo reset is disabled for this deployment.")
 
-    # A tenant-scoped runtime role must never be able to wipe every tenant.
-    # Keep this exceptional operation available only to an explicitly enabled
-    # isolated demo deployment whose DB credential itself has BYPASSRLS.
+    # Global reset is deliberately unavailable to the restricted runtime role.
     if db.get_bind().dialect.name == "postgresql":
         role_is_bypass = db.connection().execute(
-            text(
-                "SELECT rolbypassrls FROM pg_roles "
-                "WHERE rolname = current_user"
-            )
+            text("SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user")
         ).scalar_one()
         if not role_is_bypass:
             raise HTTPException(
