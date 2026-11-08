@@ -28,6 +28,8 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
+    UniqueConstraint,
     Index,
     Integer,
     LargeBinary,
@@ -91,6 +93,9 @@ class Tenant(Base):
 
 class Merchant(Base, TenantScoped):
     __tablename__ = "merchants"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_merchants_tenant_id"),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     name: Mapped[str] = mapped_column(String(200))
@@ -105,9 +110,16 @@ class Employee(Base, TenantScoped):
     node that a compromised-account incident actually happens to."""
 
     __tablename__ = "employees"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_employees_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     name: Mapped[str] = mapped_column(String(120))
     role: Mapped[str] = mapped_column(String(80), default="finance_ops")
     comm_handle: Mapped[str] = mapped_column(String(120))  # e.g. WhatsApp/phone identity
@@ -116,9 +128,17 @@ class Employee(Base, TenantScoped):
 
 class Order(Base, TenantScoped):
     __tablename__ = "orders"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_orders_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_orders_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 6))
     currency: Mapped[str] = mapped_column(String(8), default="INR")
     status: Mapped[str] = mapped_column(String(24), default="paid")
@@ -127,10 +147,22 @@ class Order(Base, TenantScoped):
 
 class Payment(Base, TenantScoped):
     __tablename__ = "payments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "order_id"],
+            ["orders.tenant_id", "orders.id"],
+            name="fk_payments_tenant_order",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_payments_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    order_id: Mapped[str] = mapped_column(ForeignKey("orders.id"), index=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    order_id: Mapped[str] = mapped_column(String(32), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     customer_id: Mapped[str] = mapped_column(String(32), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 6))
     currency: Mapped[str] = mapped_column(String(8), default="INR")
@@ -143,9 +175,17 @@ class Contact(Base, TenantScoped):
     """A RazorpayX Contact -- the human/entity a payout is made to."""
 
     __tablename__ = "contacts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_contacts_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_contacts_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     name: Mapped[str] = mapped_column(String(160))
     type: Mapped[str] = mapped_column(String(24), default="vendor")  # vendor/employee/customer
     phone: Mapped[str] = mapped_column(String(24), default="")
@@ -156,9 +196,17 @@ class Contact(Base, TenantScoped):
 
 class FundAccount(Base, TenantScoped):
     __tablename__ = "fund_accounts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_fund_accounts_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "contact_id"],
+            ["contacts.tenant_id", "contacts.id"],
+            name="fk_fund_accounts_tenant_contact",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    contact_id: Mapped[str] = mapped_column(ForeignKey("contacts.id"), index=True)
+    contact_id: Mapped[str] = mapped_column(String(32), index=True)
     account_type: Mapped[str] = mapped_column(String(16), default="bank_account")  # or vpa
     masked_bank_account: Mapped[str] = mapped_column(String(40), default="")
     masked_ifsc: Mapped[str] = mapped_column(String(20), default="")
@@ -168,11 +216,28 @@ class FundAccount(Base, TenantScoped):
 
 class Payout(Base, TenantScoped):
     __tablename__ = "payouts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_payouts_tenant_merchant",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "contact_id"],
+            ["contacts.tenant_id", "contacts.id"],
+            name="fk_payouts_tenant_contact",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "fund_account_id"],
+            ["fund_accounts.tenant_id", "fund_accounts.id"],
+            name="fk_payouts_tenant_fund_account",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
-    contact_id: Mapped[str] = mapped_column(ForeignKey("contacts.id"), index=True)
-    fund_account_id: Mapped[str] = mapped_column(ForeignKey("fund_accounts.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
+    contact_id: Mapped[str] = mapped_column(String(32), index=True)
+    fund_account_id: Mapped[str] = mapped_column(String(32), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 6))
     currency: Mapped[str] = mapped_column(String(8), default="INR")
     purpose: Mapped[str] = mapped_column(String(40), default="vendor_bill")
@@ -189,9 +254,16 @@ class Transfer(Base, TenantScoped):
     """Route/linked-account transfer."""
 
     __tablename__ = "transfers"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_transfers_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     source_payment_id: Mapped[str] = mapped_column(String(32), default="")
     destination_account_id: Mapped[str] = mapped_column(String(32), default="")
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 6))
@@ -201,9 +273,16 @@ class Transfer(Base, TenantScoped):
 
 class Settlement(Base, TenantScoped):
     __tablename__ = "settlements"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_settlements_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 6))
     status: Mapped[str] = mapped_column(String(24), default="processed")
     settlement_window_start: Mapped[dt.datetime] = mapped_column(DateTime)
@@ -217,12 +296,20 @@ class FinancialEvent(Base, TenantScoped):
     the incident engine, graph and audit trail all read from one place."""
 
     __tablename__ = "financial_events"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_financial_events_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_financial_events_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     event_type: Mapped[str] = mapped_column(String(32), index=True)  # payment/payout/transfer/settlement
     source_system: Mapped[str] = mapped_column(String(32), default="razorpay")
     source_record_id: Mapped[str] = mapped_column(String(32), index=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     actor_id: Mapped[str] = mapped_column(String(32), default="")  # employee/system actor
     account_id: Mapped[str] = mapped_column(String(32), default="")
     counterparty_id: Mapped[str] = mapped_column(String(32), default="", index=True)  # contact id
@@ -238,12 +325,19 @@ class FinancialEvent(Base, TenantScoped):
 
 class WebhookEvent(Base, TenantScoped):
     __tablename__ = "webhook_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_webhook_events_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     event_type: Mapped[str] = mapped_column(String(64))
     source_object_type: Mapped[str] = mapped_column(String(32))
     source_object_id: Mapped[str] = mapped_column(String(32), index=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     payload: Mapped[dict] = mapped_column(SafeJSON, default=dict)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
@@ -255,10 +349,18 @@ class WebhookEvent(Base, TenantScoped):
 
 class EvidenceArtifact(Base, TenantScoped):
     __tablename__ = "evidence_artifacts"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_evidence_artifacts_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_evidence_artifacts_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     incident_id: Mapped[str] = mapped_column(String(32), index=True, default="")
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     filename: Mapped[str] = mapped_column(String(200))
     mime_type: Mapped[str] = mapped_column(String(80))
     sha256: Mapped[str] = mapped_column(String(64), index=True)
@@ -271,9 +373,16 @@ class EvidenceArtifact(Base, TenantScoped):
 
 class ExtractedClaim(Base, TenantScoped):
     __tablename__ = "extracted_claims"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "source_artifact_id"],
+            ["evidence_artifacts.tenant_id", "evidence_artifacts.id"],
+            name="fk_extracted_claims_tenant_artifact",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    source_artifact_id: Mapped[str] = mapped_column(ForeignKey("evidence_artifacts.id"), index=True)
+    source_artifact_id: Mapped[str] = mapped_column(String(40), index=True)
     source_location: Mapped[str] = mapped_column(String(120), default="")
     extraction_method: Mapped[str] = mapped_column(String(40), default="rule_based_extractor")
     claim_type: Mapped[str] = mapped_column(String(40))  # instruction/amount/beneficiary/timestamp
@@ -285,9 +394,16 @@ class ExtractedClaim(Base, TenantScoped):
 
 class CommunicationEvent(Base, TenantScoped):
     __tablename__ = "communication_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "source_artifact_id"],
+            ["evidence_artifacts.tenant_id", "evidence_artifacts.id"],
+            name="fk_communication_events_tenant_artifact",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    source_artifact_id: Mapped[str] = mapped_column(ForeignKey("evidence_artifacts.id"), index=True)
+    source_artifact_id: Mapped[str] = mapped_column(String(40), index=True)
     incident_id: Mapped[str] = mapped_column(String(32), index=True, default="")
     sender_label: Mapped[str] = mapped_column(String(120))
     channel: Mapped[str] = mapped_column(String(24), default="whatsapp")
@@ -324,9 +440,17 @@ class EntityLink(Base, TenantScoped):
 
 class Incident(Base, TenantScoped):
     __tablename__ = "incidents"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_incidents_tenant_id"),
+        ForeignKeyConstraint(
+            ["tenant_id", "merchant_id"],
+            ["merchants.tenant_id", "merchants.id"],
+            name="fk_incidents_tenant_merchant",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    merchant_id: Mapped[str] = mapped_column(String(32), index=True)
     state: Mapped[str] = mapped_column(String(32), default="INGESTING", index=True)
     scenario: Mapped[str] = mapped_column(String(48), default="")
     incident_evidence_score: Mapped[float] = mapped_column(Float, default=0.0)
@@ -357,19 +481,38 @@ class IncidentEvent(Base, TenantScoped):
     file (the payouts on the incident spine)."""
 
     __tablename__ = "incident_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "incident_id"],
+            ["incidents.tenant_id", "incidents.id"],
+            name="fk_incident_events_tenant_incident",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "financial_event_id"],
+            ["financial_events.tenant_id", "financial_events.id"],
+            name="fk_incident_events_tenant_financial_event",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"), index=True)
-    financial_event_id: Mapped[str] = mapped_column(ForeignKey("financial_events.id"), index=True)
+    incident_id: Mapped[str] = mapped_column(String(32), index=True)
+    financial_event_id: Mapped[str] = mapped_column(String(40), index=True)
     role: Mapped[str] = mapped_column(String(32), default="suspicious_payout")
     sequence: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class HumanAttestation(Base, TenantScoped):
     __tablename__ = "human_attestations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "incident_id"],
+            ["incidents.tenant_id", "incidents.id"],
+            name="fk_human_attestations_tenant_incident",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"), index=True)
+    incident_id: Mapped[str] = mapped_column(String(32), index=True)
     question_id: Mapped[str] = mapped_column(String(64))
     question_text: Mapped[str] = mapped_column(String(300))
     answer: Mapped[str] = mapped_column(String(16))  # YES/NO/NOT_SURE
@@ -434,9 +577,16 @@ class RecoveryCommand(Base, TenantScoped):
     and idempotency guarantee. See services/recovery/command.py."""
 
     __tablename__ = "recovery_commands"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "incident_id"],
+            ["incidents.tenant_id", "incidents.id"],
+            name="fk_recovery_commands_tenant_incident",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
-    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"), index=True)
+    incident_id: Mapped[str] = mapped_column(String(32), index=True)
     action: Mapped[str] = mapped_column(String(40))  # e.g. FREEZE_PAYOUT / REVERSE_EVENT / LEDGER_CORRECTION
     target_type: Mapped[str] = mapped_column(String(32))  # payout / fund_account / ledger_entry
     target_id: Mapped[str] = mapped_column(String(40))
