@@ -30,6 +30,47 @@ def main() -> None:
             assert role["rolsuper"] is False
             assert role["rolbypassrls"] is False
 
+            # The role must not own tenant tables and every tenant-keyed
+            # public table must have RLS enabled plus the expected policy.
+            policy_check = connection.execute(
+                text(
+                    """
+                    WITH tenant_tables AS (
+                        SELECT DISTINCT c.table_name
+                        FROM information_schema.columns c
+                        JOIN information_schema.tables t
+                          ON t.table_schema = c.table_schema
+                         AND t.table_name = c.table_name
+                        WHERE c.table_schema = 'public'
+                          AND c.column_name = 'tenant_id'
+                          AND t.table_type = 'BASE TABLE'
+                    ),
+                    secured AS (
+                        SELECT tablename
+                        FROM pg_policies
+                        WHERE schemaname = 'public'
+                          AND policyname = 'primhora_tenant_isolation'
+                    )
+                    SELECT
+                        (SELECT count(*) FROM tenant_tables) AS tenant_table_count,
+                        (SELECT count(*) FROM tenant_tables tt
+                         JOIN secured s ON s.tablename = tt.table_name) AS policy_count,
+                        (SELECT count(*) FROM tenant_tables tt
+                         JOIN pg_class c ON c.relname = tt.table_name
+                         JOIN pg_namespace n ON n.oid = c.relnamespace
+                         WHERE n.nspname = 'public' AND c.relrowsecurity) AS rls_count,
+                        (SELECT count(*) FROM tenant_tables tt
+                         JOIN pg_class c ON c.relname = tt.table_name
+                         JOIN pg_namespace n ON n.oid = c.relnamespace
+                         WHERE n.nspname = 'public'
+                           AND pg_get_userbyid(c.relowner) = current_user) AS owned_count
+                    """
+                )
+            ).mappings().one()
+            assert policy_check["tenant_table_count"] == policy_check["policy_count"]
+            assert policy_check["tenant_table_count"] == policy_check["rls_count"]
+            assert policy_check["owned_count"] == 0
+
             connection.execute(
                 text(
                     "SELECT set_config('app.tenant_id', '', true), "
