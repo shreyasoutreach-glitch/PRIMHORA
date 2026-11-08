@@ -55,9 +55,11 @@ def upgrade() -> None:
         "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO primhora_runtime"
     )
 
-    # Every tenant-owned table, including the four risk-engine tables that do
-    # not inherit the application's TenantScoped mixin, receives the same
-    # fail-closed tenant predicate.
+    # Every tenant-owned table, including risk-engine tables that do not
+    # inherit the application's TenantScoped mixin, receives a tenant policy.
+    # Do not FORCE RLS: local development uses the table-owner credential,
+    # while the production runtime role is deliberately neither owner nor
+    # BYPASSRLS. The production role is therefore still fully subject to RLS.
     op.execute(
         """
         DO $$
@@ -81,15 +83,15 @@ def upgrade() -> None:
                     item.table_name
                 );
                 EXECUTE format(
-                    'ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',
-                    item.table_name
-                );
-                EXECUTE format(
                     'CREATE POLICY primhora_tenant_isolation ON public.%I '
                     'FOR ALL TO primhora_runtime '
-                    'USING (tenant_id::text = nullif(current_setting(''app.tenant_id'', true), '''')) '
-                    'WITH CHECK (tenant_id::text = nullif(current_setting(''app.tenant_id'', true), ''''))',
-                    item.table_name
+                    'USING (tenant_id::text = nullif(current_setting(%L, true), %L)) '
+                    'WITH CHECK (tenant_id::text = nullif(current_setting(%L, true), %L))',
+                    item.table_name,
+                    'app.tenant_id',
+                    '',
+                    'app.tenant_id',
+                    ''
                 );
             END LOOP;
         END
@@ -97,10 +99,7 @@ def upgrade() -> None:
         """
     )
 
-    # Tenant rows are visible and mutable only when their own ID is the
-    # transaction-local tenant context.
     op.execute("ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY")
-    op.execute("ALTER TABLE public.tenants FORCE ROW LEVEL SECURITY")
     op.execute(
         """
         CREATE POLICY primhora_tenant_isolation ON public.tenants
@@ -110,12 +109,9 @@ def upgrade() -> None:
         """
     )
 
-    # User lookup before tenant scope is established is narrowly permitted
-    # only by the verified OIDC subject or exact demo bearer token. Once the
-    # user is resolved, the app clears the bootstrap setting and applies the
-    # user's tenant context. Writes remain tenant-scoped.
+    # Identity bootstrap is a narrow SELECT exception: one verified OIDC
+    # subject or one exact demo bearer token. All writes remain tenant-bound.
     op.execute("ALTER TABLE public.users ENABLE ROW LEVEL SECURITY")
-    op.execute("ALTER TABLE public.users FORCE ROW LEVEL SECURITY")
     op.execute(
         """
         CREATE POLICY primhora_user_tenant_write ON public.users
