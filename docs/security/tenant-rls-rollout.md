@@ -1,13 +1,13 @@
 # ADR: Safe PostgreSQL tenant-RLS rollout
 
-**Status:** Proposed. Documentation only; no production SQL or credentials changed.
+**Status:** Implementation prepared on `security/postgres-rls-runtime-role`; not merged or deployed. No production SQL or credentials changed.
 **Scope:** PRIMHORA's Supabase PostgreSQL database and Render API runtime.
 
 ## Executive decision
 
 Do not add tenant policies to the live database until the application runtime is moved off a privileged database role and the identity bootstrap path is redesigned. The current database has RLS enabled on 27 public tables, but zero policies. The existing application depends on global user lookup and system-scoped sessions. A policy-only migration would either break authentication/operations or tempt us to add a broad bypass.
 
-The target is:
+The implementation branch now contains a staged first cut: a NOLOGIN `primhora_runtime` group role, tenant policies, transaction-local context wiring, and a PostgreSQL role-level verification script. A separate LOGIN role and production credential switch remain activation steps. The target is:
 
 1. A dedicated app_runtime login role that is not a table owner, is not a member of a privileged role, and has neither SUPERUSER nor BYPASSRLS.
 2. A separate migration credential/role with schema-owner privileges. Runtime startup must not run Alembic using the application credential.
@@ -89,7 +89,7 @@ The SQLAlchemy implementation must handle the fact that FastAPI dependencies may
 | users | Normal access limited to tenant_id = app.tenant_id; bootstrap lookup may additionally select only the row whose idp_subject equals verified app.oidc_subject |
 | alembic_version | No runtime grant; migration role only |
 
-Enable and FORCE RLS on tenant-owned tables after the role and policy tests are ready. Keep the runtime role distinct from the owner because FORCE RLS does not make a superuser or BYPASSRLS role subject to policies.
+Enable RLS on tenant-owned tables after role and policy tests are ready. `primhora_app` must be neither table owner nor BYPASSRLS. FORCE RLS is intentionally omitted so local owner-based development seeding continues to work; this does not weaken RLS for the separate non-owner production runtime role.
 
 Use explicit policies per command (SELECT, INSERT, UPDATE, DELETE) or a carefully reviewed combined policy. Verify every policy's USING and WITH CHECK semantics. Do not use a permissive true policy for system access.
 
