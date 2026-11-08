@@ -32,13 +32,21 @@ def get_current_user(authorization: str = Header(default=""), db: Session = Depe
     if not token:
         raise HTTPException(401, "Empty bearer token")
 
+    # Identity bootstrap is deliberately narrow: PostgreSQL RLS permits this
+    # one lookup by the already-verified OIDC subject or demo token. As soon
+    # as the user row is found, clear the bootstrap GUC and scope the session
+    # to that user's tenant for the rest of the request.
     db.set_tenant(None)
 
     if settings.demo_mode:
+        db.set_demo_token(token)
         user = db.query(User).filter(User.api_token == token).first()
+        db.set_demo_token(None)
         if user is not None:
+            db.set_tenant(user.tenant_id)
             return user
         if token == settings.demo_master_token and settings.demo_master_token:
+            db.set_tenant("TEN_NORTHBRIDGE")
             return User(
                 id="USR_DEMO_MASTER",
                 tenant_id="TEN_NORTHBRIDGE",
@@ -81,10 +89,13 @@ def get_current_user(authorization: str = Header(default=""), db: Session = Depe
     if not subject or not isinstance(subject, str):
         raise HTTPException(401, "JWT payload must contain an immutable 'sub' claim")
 
+    db.set_oidc_subject(subject)
     user = db.query(User).filter(User.idp_subject == subject).first()
+    db.set_oidc_subject(None)
     if user is None:
         raise HTTPException(403, "Identity is authenticated but not provisioned for this application")
 
+    db.set_tenant(user.tenant_id)
     return user
 
 
@@ -110,7 +121,8 @@ def get_system_db(
     user: User = Depends(require_permission("EXECUTE")),
     db: Session = Depends(get_db),
 ) -> Session:
+    """Administrator operations remain tenant-scoped, never global by default."""
     if user.role != "ADMINISTRATOR":
         raise HTTPException(403, "Administrator role required for system operations")
-    db.set_tenant(None)
+    db.set_tenant(user.tenant_id)
     return db
