@@ -112,7 +112,7 @@ If the app fails after switching `DATABASE_URL`, restore the previous runtime UR
 
 ## Known remaining security work
 
-- Composite tenant-aware foreign keys: many current foreign keys reference only record IDs. Add a separate migration after checking for existing cross-tenant references.
+- [Branch migration] `f3a8d1c6e9b2_tenant_composite_foreign_keys.py` replaces all 21 ID-only tenant-to-tenant references with composite tenant-aware foreign keys. A read-only audit of the live database on 2026-11-08 found zero cross-tenant mismatches; the migration repeats the preflight and aborts if any appear. The migration is not yet applied to production.
 - Production backup/restore verification: not yet confirmed.
 - Render's live environment variable values and live health-check setting: not exposed by the inspection connector; verify in the dashboard.
 - The custom `app.tenant_id` GUC is transaction-local and validated by application flow, but it is not a cryptographic capability. RLS is defense in depth against missing predicates, not a substitute for SQL-injection prevention or a boundary against a fully compromised app credential.
