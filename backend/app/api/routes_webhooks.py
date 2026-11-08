@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import uuid
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -10,11 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.core.config import get_settings
 from app.models import entities as m
-from app.services.integrations.razorpayx import (
-    RazorpayXNotConfigured,
-    normalize_payout,
-    verify_webhook_signature,
-)
+from app.services.integrations.razorpayx import normalize_payout, verify_webhook_signature
 
 router = APIRouter(tags=["webhooks"])
 settings = get_settings()
@@ -94,9 +89,10 @@ async def razorpay_webhook(
 ):
     if settings.demo_mode:
         raise HTTPException(404, "Provider webhooks are disabled in demo mode")
-    secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
-    merchant_id = os.environ.get("RAZORPAY_MERCHANT_ID", "")
-    if not secret or not merchant_id:
+    secret = settings.razorpay_webhook_secret
+    merchant_id = settings.razorpay_merchant_id
+    tenant_id = settings.razorpay_tenant_id
+    if not secret or not merchant_id or not tenant_id:
         raise HTTPException(503, "Razorpay webhook integration is not configured")
 
     raw = await request.body()
@@ -108,16 +104,16 @@ async def razorpay_webhook(
 
     db = SessionLocal()
     try:
-        db.set_tenant(None)
+        # The integration configuration binds this webhook to exactly one
+        # tenant. No global merchant lookup is performed with the runtime role.
+        db.set_tenant(tenant_id)
         merchant = db.get(m.Merchant, merchant_id)
-        if merchant is None:
-            raise HTTPException(404, "Configured Razorpay merchant does not exist")
-        tenant_id = merchant.tenant_id
+        if merchant is None or merchant.tenant_id != tenant_id:
+            raise HTTPException(404, "Configured Razorpay merchant does not exist in the configured tenant")
 
         if db.get(m.WebhookEvent, event_id):
             return {"status": "duplicate_ignored", "event_id": event_id}
 
-        db.set_tenant(tenant_id)
         event = m.WebhookEvent(
             id=event_id,
             event_type=payload.get("event", "unknown"),
