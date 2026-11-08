@@ -13,6 +13,7 @@ e7f1c9a4b2d6_tenant_rls_runtime_role.py
 - Revokes access to `public.alembic_version`.
 - Adds default-deny policies to every public base table with `tenant_id`.
 - Adds a tenant-ID policy to `tenants`.
+- Adds 21 composite tenant-aware foreign keys for existing tenant-to-tenant references; the migration aborts if its live preflight finds a cross-tenant mismatch.
 - Adds tenant-scoped writes plus exact OIDC-subject/demo-token SELECT bootstrap policies to `users`.
 - Does not create a login role, set a password, or change Render's current runtime credential.
 
