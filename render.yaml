@@ -13,7 +13,7 @@ services:
       - key: MIGRATION_DATABASE_URL
         sync: false
       - key: DEMO_MODE
-        value: true
+        value: false
       - key: DEMO_ALLOW_GLOBAL_RESET
         value: false
       - key: DEMO_ALLOW_EXTERNAL_INGESTION
